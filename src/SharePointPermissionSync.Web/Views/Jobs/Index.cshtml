@@ -1,0 +1,141 @@
+@model List<SharePointPermissionSync.Data.Entities.ProcessingJob>
+
+@{
+    ViewData["Title"] = "Processing Jobs";
+    var currentStatus = ViewBag.CurrentStatus as string;
+    var currentPage = (int)ViewBag.CurrentPage;
+    var pageSize = (int)ViewBag.PageSize;
+}
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Processing Jobs</h2>
+        </div>
+        <div class="col text-end">
+            <a asp-controller="Operations" asp-action="InteractionPermissions" class="btn btn-primary">
+                <i class="bi bi-upload"></i> Upload Permissions
+            </a>
+            <a asp-controller="Operations" asp-action="InteractionCreation" class="btn btn-success">
+                <i class="bi bi-folder-plus"></i> Create Interactions
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col">
+            <div class="btn-group" role="group">
+                <a asp-action="Index" class="btn @(string.IsNullOrEmpty(currentStatus) ? "btn-primary" : "btn-outline-primary")">
+                    All
+                </a>
+                <a asp-action="Index" asp-route-status="Queued" class="btn @(currentStatus == "Queued" ? "btn-primary" : "btn-outline-primary")">
+                    Queued
+                </a>
+                <a asp-action="Index" asp-route-status="Processing" class="btn @(currentStatus == "Processing" ? "btn-primary" : "btn-outline-primary")">
+                    Processing
+                </a>
+                <a asp-action="Index" asp-route-status="Completed" class="btn @(currentStatus == "Completed" ? "btn-success" : "btn-outline-success")">
+                    Completed
+                </a>
+                <a asp-action="Index" asp-route-status="Failed" class="btn @(currentStatus == "Failed" ? "btn-danger" : "btn-outline-danger")">
+                    Failed
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Type</th>
+                        <th>File Name</th>
+                        <th>Environment</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var job in Model)
+                    {
+                        var progressPercent = job.TotalItems > 0 ? (int)((decimal)job.ProcessedItems / job.TotalItems * 100) : 0;
+                        var statusClass = job.Status switch
+                        {
+                            "Completed" => "success",
+                            "Failed" => "danger",
+                            "Processing" => "warning",
+                            _ => "secondary"
+                        };
+
+                        <tr>
+                            <td>
+                                <small class="font-monospace">@job.JobId.ToString().Substring(0, 8)...</small>
+                            </td>
+                            <td>@job.JobType</td>
+                            <td>@job.FileName</td>
+                            <td>
+                                <span class="badge bg-info">@job.Environment</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-@statusClass">@job.Status</span>
+                            </td>
+                            <td>
+                                <div class="progress" style="min-width: 150px;">
+                                    <div class="progress-bar @(job.FailedItems > 0 ? "bg-warning" : "")"
+                                         role="progressbar"
+                                         style="width: @progressPercent%"
+                                         aria-valuenow="@progressPercent"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                        @job.ProcessedItems / @job.TotalItems
+                                    </div>
+                                </div>
+                                @if (job.FailedItems > 0)
+                                {
+                                    <small class="text-danger">@job.FailedItems failed</small>
+                                }
+                            </td>
+                            <td>
+                                <small>@job.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small>
+                            </td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@job.JobId" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Details
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <nav aria-label="Job pagination">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-status="@currentStatus" asp-route-page="@(currentPage - 1)" asp-route-pageSize="@pageSize">
+                        Previous
+                    </a>
+                </li>
+                <li class="page-item active">
+                    <span class="page-link">Page @currentPage</span>
+                </li>
+                <li class="page-item @(Model.Count < pageSize ? "disabled" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-status="@currentStatus" asp-route-page="@(currentPage + 1)" asp-route-pageSize="@pageSize">
+                        Next
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No jobs found.
+        </div>
+    }
+</div>

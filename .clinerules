@@ -1,0 +1,274 @@
+# SharePoint Permission Sync System - Claude Code Instructions
+
+## Project Overview
+This system replaces unreliable K2 workflows for SharePoint permission management and interaction creation.
+It uses a message queue pattern for controlled, resilient processing to avoid SharePoint throttling.
+
+**Read DEVELOPMENT_GUIDE.md for complete architecture, database schemas, and implementation details.**
+
+## Key Architecture Decisions
+
+### Technology Stack
+- **Web Portal**: ASP.NET Core 8 MVC
+- **Worker Service**: .NET 8 Background Worker
+- **Message Queue**: RabbitMQ
+- **Database**: SQL Server (existing ScyneShare database)
+- **Real-time Updates**: SignalR
+- **SharePoint Integration**: Existing Tecala.SMO.SharePoint library + Direct CSOM
+
+### Critical Integration Points
+
+**USE EXISTING LIBRARY:**
+- Tecala.SMO.SharePoint is production-tested (1+ years)
+- Use SharePointService methods for: NewInteraction, PermissionChangeInteraction, NewProject, etc.
+- See DEVELOPMENT_GUIDE.md "Existing SharePoint Service Library API" section for full method list
+
+**USE DIRECT CSOM ONLY FOR:**
+- Removing unique permissions (not in broker)
+- Validating folder existence
+- Operations not covered by the broker
+
+### Configuration Structure
+```
+Environment-based config (DEV/UAT/PROD)
+- SharePoint: TenantId, ClientId, CertificateThumbprint, TenantName
+- Database: ConnectionStrings per environment
+- RabbitMQ: Queue names and connection settings
+```
+
+### Database Schema
+All tables in ScyneShare schema:
+- ProcessingJobs: Job tracking
+- ProcessingJobItems: Individual message tracking
+- Engagement, Project, Interaction: Existing hierarchy
+
+**DO NOT create tables in dbo schema - those are temporary/throwaway**
+
+## Code Style Guidelines
+
+### Namespace Convention
+```csharp
+// Use this pattern:
+Tecala.SharePoint.PermissionSync.Web
+Tecala.SharePoint.PermissionSync.Worker
+Tecala.SharePoint.PermissionSync.Core
+Tecala.SharePoint.PermissionSync.Data
+
+// Alternative if going with SyncPoint name:
+Tecala.SyncPoint.Web
+Tecala.SyncPoint.Worker
+Tecala.SyncPoint.Core
+Tecala.SyncPoint.Data
+```
+
+### ServiceConfiguration Pattern
+When using Tecala.SMO.SharePoint library, always initialize like this:
+```csharp
+var config = new ServiceConfiguration();
+config.Add("Entra-TenantId", false, _configuration["SharePoint:DEV:TenantId"]);
+config.Add("Entra-ClientId", false, _configuration["SharePoint:DEV:ClientId"]);
+config.Add("Entra-CertificateThumbprint", false, _configuration["SharePoint:DEV:CertificateThumbprint"]);
+config.Add("SharePoint-TenantName", false, _configuration["SharePoint:DEV:TenantName"]);
+config.Add("InteractionFolderTemplateJSON", false, _configuration["SharePoint:InteractionFolderTemplate"]);
+config.Add("ScyneDB-ConnectionString", false, _configuration["ConnectionStrings:DEV"]);
+
+var service = new SharePointService { ServiceConfiguration = config };
+```
+
+### Logging Standards
+- Use ILogger<T> dependency injection
+- Log all SharePoint operations with InteractionId/FolderId context
+- Log throttling events prominently
+- Log token refresh events
+
+### Error Handling
+- Always wrap SharePoint operations in try-catch
+- Check for throttling exceptions: ServerException with code -2147429894
+- Implement exponential backoff for retries
+- Max 3 retries by default
+- Dead letter queue for permanent failures
+
+## Queue Message Patterns
+
+All messages inherit from QueueMessageBase:
+```csharp
+public abstract class QueueMessageBase
+{
+    public Guid MessageId { get; set; }
+    public Guid JobId { get; set; }
+    public string OperationType { get; set; }
+    public DateTime EnqueuedAt { get; set; }
+    public int RetryCount { get; set; }
+    public int MaxRetries { get; set; } = 3;
+    public string Environment { get; set; } // DEV, UAT, PROD
+}
+```
+
+See DEVELOPMENT_GUIDE.md for specific message types (InteractionPermissionMessage, etc.)
+
+## Throttling Strategy
+
+Adaptive throttling manager:
+- Start: 500ms delay
+- Min: 50ms
+- Max: 5000ms
+- Reduce delay after 10 consecutive successes
+- Double delay on throttling (429 errors)
+- Apply delay between ALL operations
+
+## Authentication Pattern
+
+Certificate-based authentication via MSAL:
+```csharp
+var cert = GetCertificateFromStore(thumbprint);
+var app = ConfidentialClientApplicationBuilder
+    .Create(clientId)
+    .WithAuthority(AzureCloudInstance.AzurePublic, tenantId)
+    .WithCertificate(cert)
+    .Build();
+
+// Token refresh with 15-minute buffer
+bool needsRefresh = token == null || DateTime.Now.AddMinutes(15) >= expiresAt;
+```
+
+## CSV Processing
+
+Expected formats in DEVELOPMENT_GUIDE.md, but general pattern:
+- Validate CSV structure before enqueuing
+- Create one message per row (or logical operation)
+- Store original filename in ProcessingJobs table
+- Track each CSV row as ProcessingJobItem
+
+## SignalR Real-time Updates
+
+Hub name: JobProgressHub
+Events to emit:
+- JobStarted(jobId)
+- ItemProcessed(jobId, itemId, status)
+- JobCompleted(jobId, stats)
+- JobFailed(jobId, error)
+
+## Development Phases
+
+**Phase 1: Core Infrastructure**
+- Database tables (ProcessingJobs, ProcessingJobItems)
+- Queue message classes
+- Basic RabbitMQ publisher/consumer
+
+**Phase 2: Worker Service**
+- SharePointOperationService (wraps Tecala.SMO.SharePoint)
+- DirectSharePointService (for CSOM operations)
+- MessageProcessor with throttling
+- One operation type (InteractionPermissionSync)
+
+**Phase 3: Web Portal**
+- CSV upload
+- Job creation
+- Queue publishing
+- Basic monitoring dashboard
+
+**Phase 4: Real-time & Polish**
+- SignalR integration
+- Live progress updates
+- Retry/resume capabilities
+- Error reporting
+
+## Common Pitfalls to Avoid
+
+❌ Don't create multiple simultaneous SharePoint connections
+❌ Don't process messages without throttling delays
+❌ Don't use localStorage/sessionStorage in browser (not supported)
+❌ Don't create dbo schema tables (use ScyneShare schema)
+❌ Don't hardcode credentials (use configuration)
+❌ Don't forget to update job progress in database
+❌ Don't skip retry logic for transient failures
+
+## Testing Strategy
+
+Unit tests:
+- Message validation
+- CSV parsing
+- Configuration loading
+
+Integration tests:
+- SharePoint operations (requires cert)
+- Database operations
+- RabbitMQ publish/consume
+
+Manual testing:
+- Small CSV files (10 rows)
+- Single operations first
+- Monitor SharePoint throttling
+- Verify database updates
+
+## Deployment Considerations
+
+**Worker Service Hosting Options:**
+1. Windows Service on server (recommended for production)
+2. Docker container
+3. Azure App Service
+4. Same server as web app
+
+**Certificate Requirements:**
+- Install in LocalMachine\My store
+- Grant read permissions to worker service account
+- Same cert for DEV/UAT/PROD or separate per environment
+
+**RabbitMQ:**
+- Docker container for dev/test
+- Dedicated server for production
+- Configure persistence and monitoring
+
+## Quick Reference Commands
+
+**Start RabbitMQ (Docker):**
+```bash
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+```
+
+**Build Worker Service:**
+```bash
+cd src/SharePointPermissionSync.Worker
+dotnet build
+dotnet run
+```
+
+**Publish Worker as Windows Service:**
+```bash
+dotnet publish -c Release -r win-x64 --self-contained
+sc create SharePointPermissionSyncWorker binPath="C:\Path\To\Worker.exe"
+```
+
+## Important Notes
+
+- SharePoint folder hierarchy: Engagement → Project → Interaction
+- Engagement has unique permissions
+- Project inherits from Engagement
+- Interaction has unique permissions
+- Everything lives in "Documents" library
+- First folder in library typically has ID = 1
+- All operations are logged to Windows Event Log by Tecala.SMO.SharePoint
+- Token expires checked with 15-minute buffer
+- Always use async/await for SharePoint operations
+
+## When to Ask for Clarification
+
+Ask the user to specify:
+1. Which environment to target (DEV/UAT/PROD)
+2. Which operation to implement first
+3. Where to host the worker service
+4. CSV format if different from DEVELOPMENT_GUIDE.md
+5. Any custom business rules for permission assignment
+
+## Final Reminder
+
+**Always consult DEVELOPMENT_GUIDE.md for:**
+- Complete SharePointService API reference
+- Full database schemas with indexes
+- All message queue structures
+- Configuration templates
+- Code examples for each operation type
+- CSV formats for each operation
+- Detailed implementation guidance
+
+The development guide is the source of truth for this project.

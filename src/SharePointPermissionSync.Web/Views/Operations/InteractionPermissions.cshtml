@@ -1,0 +1,112 @@
+@{
+    ViewData["Title"] = "Interaction Permission Sync";
+}
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Interaction Permission Sync</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a asp-controller="Jobs" asp-action="Index">Jobs</a>
+                    </li>
+                    <li class="breadcrumb-item active">Interaction Permissions</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Upload CSV File</h5>
+                </div>
+                <div class="card-body">
+                    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                    <form asp-action="UploadInteractionPermissions" method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="environment" class="form-label">Environment <span class="text-danger">*</span></label>
+                            <select id="environment" name="environment" class="form-select" required>
+                                <option value="">-- Select Environment --</option>
+                                <option value="DEV">Development</option>
+                                <option value="UAT">UAT</option>
+                                <option value="PROD">Production</option>
+                            </select>
+                            <div class="form-text">Select the target SharePoint environment.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="siteUrl" class="form-label">Site URL <span class="text-danger">*</span></label>
+                            <input type="url" id="siteUrl" name="siteUrl" class="form-control"
+                                   placeholder="https://yourtenant.sharepoint.com/sites/yoursite" required />
+                            <div class="form-text">The SharePoint site URL (can be overridden per row in CSV).</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="csvFile" class="form-label">CSV File <span class="text-danger">*</span></label>
+                            <input type="file" id="csvFile" name="csvFile" class="form-control"
+                                   accept=".csv" required />
+                            <div class="form-text">Upload a CSV file with interaction permission data.</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-controller="Jobs" asp-action="Index" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Jobs
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-upload"></i> Upload and Process
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">CSV Format</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Required Columns:</strong></p>
+                    <ul class="small mb-3">
+                        <li><code>InteractionId</code> - Interaction ID (integer)</li>
+                        <li><code>ProjectId</code> - Project ID (integer)</li>
+                        <li><code>EngagementId</code> - Engagement ID (integer)</li>
+                        <li><code>SharePointFolderId</code> - SharePoint Folder ID (integer)</li>
+                    </ul>
+
+                    <p class="mb-2"><strong>Optional Columns:</strong></p>
+                    <ul class="small mb-3">
+                        <li><code>SiteUrl</code> - Site URL (overrides default)</li>
+                        <li><code>InternalPermission</code> - Permission level (default: Read)</li>
+                        <li><code>InternalUserEmails</code> - Semicolon-separated emails</li>
+                        <li><code>ExternalPermission</code> - External permission level</li>
+                        <li><code>ExternalUserEmails</code> - Semicolon-separated emails</li>
+                    </ul>
+
+                    <p class="mb-2"><strong>Example:</strong></p>
+                    <pre class="bg-light p-2 small"><code>InteractionId,ProjectId,EngagementId,SharePointFolderId,InternalPermission,InternalUserEmails
+123,456,789,1011,Edit,user1@domain.com;user2@domain.com</code></pre>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-warning">
+                    <h6 class="mb-0">Important Notes</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li>CSV file must have headers</li>
+                        <li>Multiple email addresses must be separated by semicolons</li>
+                        <li>Valid permission levels: Read, Edit, Contribute, Full Control</li>
+                        <li>Processing is asynchronous - you'll be redirected to the job details page</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

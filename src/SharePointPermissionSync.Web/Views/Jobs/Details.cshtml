@@ -1,0 +1,250 @@
+@model SharePointPermissionSync.Data.Entities.ProcessingJob
+
+@{
+    ViewData["Title"] = "Job Details";
+    var items = ViewBag.Items as List<SharePointPermissionSync.Data.Entities.ProcessingJobItem>;
+    var progressPercent = Model.TotalItems > 0 ? (int)((decimal)Model.ProcessedItems / Model.TotalItems * 100) : 0;
+    var statusClass = Model.Status switch
+    {
+        "Completed" => "success",
+        "Failed" => "danger",
+        "Processing" => "warning",
+        _ => "secondary"
+    };
+}
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Job Details</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a asp-action="Index">Jobs</a>
+                    </li>
+                    <li class="breadcrumb-item active">@Model.JobId.ToString().Substring(0, 8)</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Job Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Job ID:</dt>
+                        <dd class="col-sm-8"><code>@Model.JobId</code></dd>
+
+                        <dt class="col-sm-4">Type:</dt>
+                        <dd class="col-sm-8">@Model.JobType</dd>
+
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-@statusClass">@Model.Status</span>
+                        </dd>
+
+                        <dt class="col-sm-4">File Name:</dt>
+                        <dd class="col-sm-8">@Model.FileName</dd>
+
+                        <dt class="col-sm-4">Environment:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-info">@Model.Environment</span>
+                        </dd>
+
+                        <dt class="col-sm-4">Site URL:</dt>
+                        <dd class="col-sm-8">
+                            <small>@Model.SiteUrl</small>
+                        </dd>
+
+                        <dt class="col-sm-4">Uploaded By:</dt>
+                        <dd class="col-sm-8">@Model.UploadedBy</dd>
+
+                        <dt class="col-sm-4">Created:</dt>
+                        <dd class="col-sm-8">@Model.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</dd>
+
+                        @if (Model.StartedAt.HasValue)
+                        {
+                            <dt class="col-sm-4">Started:</dt>
+                            <dd class="col-sm-8">@Model.StartedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                        }
+
+                        @if (Model.CompletedAt.HasValue)
+                        {
+                            <dt class="col-sm-4">Completed:</dt>
+                            <dd class="col-sm-8">@Model.CompletedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                        }
+
+                        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                        {
+                            <dt class="col-sm-4">Error:</dt>
+                            <dd class="col-sm-8">
+                                <div class="alert alert-danger mb-0">@Model.ErrorMessage</div>
+                            </dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Progress</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Overall Progress</span>
+                            <span>@progressPercent%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar @(Model.FailedItems > 0 ? "bg-warning" : "bg-success")"
+                                 role="progressbar"
+                                 style="width: @progressPercent%"
+                                 aria-valuenow="@progressPercent"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                                @Model.ProcessedItems / @Model.TotalItems
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h3 class="mb-0">@Model.TotalItems</h3>
+                                    <small class="text-muted">Total</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <h3 class="mb-0">@(Model.ProcessedItems - Model.FailedItems)</h3>
+                                    <small>Completed</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body">
+                                    <h3 class="mb-0">@Model.FailedItems</h3>
+                                    <small>Failed</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (items != null && items.Any())
+    {
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Job Items (@items.Count)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Status</th>
+                                <th>Retry Count</th>
+                                <th>Created</th>
+                                <th>Processed</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in items)
+                            {
+                                var itemStatusClass = item.Status switch
+                                {
+                                    "Completed" => "success",
+                                    "Failed" => "danger",
+                                    "Processing" => "warning",
+                                    _ => "secondary"
+                                };
+
+                                <tr>
+                                    <td>
+                                        <small>@item.ItemIdentifier</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@itemStatusClass">@item.Status</span>
+                                    </td>
+                                    <td>
+                                        @item.RetryCount / @item.MaxRetries
+                                    </td>
+                                    <td>
+                                        <small>@item.CreatedAt.ToLocalTime().ToString("HH:mm:ss")</small>
+                                    </td>
+                                    <td>
+                                        @if (item.ProcessedAt.HasValue)
+                                        {
+                                            <small>@item.ProcessedAt.Value.ToLocalTime().ToString("HH:mm:ss")</small>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.ErrorMessage))
+                                        {
+                                            <small class="text-danger" title="@item.ErrorMessage">
+                                                @(item.ErrorMessage.Length > 50 ? item.ErrorMessage.Substring(0, 50) + "..." : item.ErrorMessage)
+                                            </small>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/signalr/dist/browser/signalr.min.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/jobprogress")
+            .build();
+
+        connection.on("JobProgressUpdated", (jobId, progress) => {
+            if (jobId === "@Model.JobId") {
+                location.reload();
+            }
+        });
+
+        connection.start().catch(err => console.error(err.toString()));
+
+        // Subscribe to job updates
+        connection.invoke("SubscribeToJob", "@Model.JobId");
+
+        // Auto-refresh every 5 seconds if job is still processing
+        @if (Model.Status == "Processing" || Model.Status == "Queued")
+        {
+            <text>
+            setInterval(() => {
+                location.reload();
+            }, 5000);
+            </text>
+        }
+    </script>
+}
