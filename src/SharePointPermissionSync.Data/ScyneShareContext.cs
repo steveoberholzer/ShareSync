@@ -30,10 +30,10 @@ public class ScyneShareContext : DbContext
         // Configure schema
         modelBuilder.HasDefaultSchema("ScyneShare");
 
-        // Configure Engagement
+        // Configure Engagement (EXISTING TABLE - excluded from migrations)
         modelBuilder.Entity<Engagement>(entity =>
         {
-            entity.ToTable("Engagement");
+            entity.ToTable("Engagement", t => t.ExcludeFromMigrations());
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.SiteURL).HasMaxLength(255);
@@ -55,10 +55,10 @@ public class ScyneShareContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
-        // Configure Project
+        // Configure Project (EXISTING TABLE - excluded from migrations)
         modelBuilder.Entity<Project>(entity =>
         {
-            entity.ToTable("Project");
+            entity.ToTable("Project", t => t.ExcludeFromMigrations());
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.CreatedBy).HasMaxLength(200);
@@ -74,10 +74,10 @@ public class ScyneShareContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
-        // Configure Interaction
+        // Configure Interaction (EXISTING TABLE - excluded from migrations)
         modelBuilder.Entity<Interaction>(entity =>
         {
-            entity.ToTable("Interaction");
+            entity.ToTable("Interaction", t => t.ExcludeFromMigrations());
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).HasMaxLength(500);
             entity.Property(e => e.CreatedBy).HasMaxLength(200);
@@ -95,10 +95,10 @@ public class ScyneShareContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Configure InteractionMembership
+        // Configure InteractionMembership (EXISTING TABLE - excluded from migrations)
         modelBuilder.Entity<InteractionMembership>(entity =>
         {
-            entity.ToTable("InteractionMembership");
+            entity.ToTable("InteractionMembership", t => t.ExcludeFromMigrations());
             entity.HasKey(e => e.Id);
             entity.Property(e => e.CreatedBy).HasMaxLength(200);
             entity.Property(e => e.CreatedByFQN).HasMaxLength(200);
@@ -106,7 +106,7 @@ public class ScyneShareContext : DbContext
             entity.Property(e => e.ModifiedByFQN).HasMaxLength(200);
         });
 
-        // Configure ProcessingJob
+        // Configure ProcessingJob (NEW TABLE - included in migrations)
         modelBuilder.Entity<ProcessingJob>(entity =>
         {
             entity.ToTable("ProcessingJobs");
@@ -129,7 +129,7 @@ public class ScyneShareContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Configure ProcessingJobItem
+        // Configure ProcessingJobItem (NEW TABLE - included in migrations)
         modelBuilder.Entity<ProcessingJobItem>(entity =>
         {
             entity.ToTable("ProcessingJobItems");

@@ -1,0 +1,4 @@
+InteractionId,ProjectId,EngagementId,SharePointFolderId,InternalPermission,InternalUserEmails
+123,456,789,1011,Edit,test@domain.com
+124,456,789,1012,Read,user1@domain.com;user2@domain.com
+125,457,790,1013,Contribute,admin@domain.com
