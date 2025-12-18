@@ -66,4 +66,27 @@ public interface IJobRepository
     /// Get a specific job item by message ID
     /// </summary>
     Task<ProcessingJobItem?> GetJobItemByMessageIdAsync(Guid messageId);
+
+    /// <summary>
+    /// Get all job items across all jobs with filtering and pagination
+    /// </summary>
+    Task<List<ProcessingJobItem>> GetAllJobItemsAsync(
+        string? status = null,
+        string? itemType = null,
+        string? searchTerm = null,
+        int skip = 0,
+        int take = 100);
+
+    /// <summary>
+    /// Get count of all job items with filtering
+    /// </summary>
+    Task<int> GetAllJobItemsCountAsync(
+        string? status = null,
+        string? itemType = null,
+        string? searchTerm = null);
+
+    /// <summary>
+    /// Delete a job item by message ID
+    /// </summary>
+    Task<bool> DeleteJobItemAsync(Guid messageId);
 }

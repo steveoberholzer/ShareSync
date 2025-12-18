@@ -108,6 +108,45 @@ public class QueueService : IDisposable
             queueName);
     }
 
+    /// <summary>
+    /// Publish a raw JSON message to a queue (for retry scenarios)
+    /// </summary>
+    public async Task PublishMessageAsync(string queueName, string messageJson)
+    {
+        if (_channel == null)
+            await InitializeAsync();
+
+        try
+        {
+            var body = Encoding.UTF8.GetBytes(messageJson);
+
+            var properties = new BasicProperties
+            {
+                Persistent = true,
+                MessageId = Guid.NewGuid().ToString(),
+                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+            };
+
+            await _channel!.BasicPublishAsync(
+                exchange: "",
+                routingKey: queueName,
+                mandatory: true,
+                basicProperties: properties,
+                body: body);
+
+            _logger.LogInformation(
+                "Published raw message to queue {QueueName}",
+                queueName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to publish raw message to queue {QueueName}",
+                queueName);
+            throw;
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)

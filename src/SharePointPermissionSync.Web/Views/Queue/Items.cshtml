@@ -1,0 +1,310 @@
+@model List<SharePointPermissionSync.Data.Entities.ProcessingJobItem>
+
+@{
+    ViewData["Title"] = "Queue Management";
+    var currentStatus = ViewBag.CurrentStatus as string;
+    var currentItemType = ViewBag.CurrentItemType as string;
+    var currentSearch = ViewBag.CurrentSearch as string;
+    var currentPage = (int)ViewBag.CurrentPage;
+    var pageSize = (int)ViewBag.PageSize;
+    var totalCount = (int)ViewBag.TotalCount;
+    var totalPages = (int)ViewBag.TotalPages;
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>
+                <i class="bi bi-kanban"></i> Queue Management
+            </h2>
+            <p class="text-muted">Monitor and manage all queue items across all jobs</p>
+        </div>
+        <div class="col text-end">
+            <button class="btn btn-outline-secondary" onclick="refreshStatistics()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4" id="statisticsCards">
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Pending</h6>
+                    <h3 class="card-title text-warning" id="stat-pending">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Processing</h6>
+                    <h3 class="card-title text-info" id="stat-processing">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Completed</h6>
+                    <h3 class="card-title text-success" id="stat-completed">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Failed</h6>
+                    <h3 class="card-title text-danger" id="stat-failed">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <form asp-action="Items" method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All</option>
+                        <option value="Pending" selected="@(currentStatus == "Pending")">Pending</option>
+                        <option value="Processing" selected="@(currentStatus == "Processing")">Processing</option>
+                        <option value="Completed" selected="@(currentStatus == "Completed")">Completed</option>
+                        <option value="Failed" selected="@(currentStatus == "Failed")">Failed</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="itemType" class="form-label">Item Type</label>
+                    <select name="itemType" id="itemType" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="InteractionPermissionSync" selected="@(currentItemType == "InteractionPermissionSync")">Permission Sync</option>
+                        <option value="InteractionCreation" selected="@(currentItemType == "InteractionCreation")">Interaction Creation</option>
+                        <option value="RemoveUniquePermissions" selected="@(currentItemType == "RemoveUniquePermissions")">Remove Permissions</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" name="search" id="search" class="form-control" placeholder="Search identifier or error message..." value="@currentSearch" />
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results summary -->
+    <div class="row mb-2">
+        <div class="col">
+            <p class="text-muted">
+                Showing @Model.Count of @totalCount items
+                @if (!string.IsNullOrEmpty(currentStatus))
+                {
+                    <span> - Status: <strong>@currentStatus</strong></span>
+                }
+                @if (!string.IsNullOrEmpty(currentItemType))
+                {
+                    <span> - Type: <strong>@currentItemType</strong></span>
+                }
+                @if (!string.IsNullOrEmpty(currentSearch))
+                {
+                    <span> - Search: <strong>@currentSearch</strong></span>
+                }
+            </p>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    @if (Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover table-sm">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Message ID</th>
+                        <th>Job ID</th>
+                        <th>Type</th>
+                        <th>Identifier</th>
+                        <th>Status</th>
+                        <th>Retry</th>
+                        <th>Created</th>
+                        <th>Processed</th>
+                        <th>Error</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        var statusClass = item.Status switch
+                        {
+                            "Completed" => "success",
+                            "Failed" => "danger",
+                            "Processing" => "info",
+                            "Pending" => "warning",
+                            _ => "secondary"
+                        };
+
+                        <tr>
+                            <td>
+                                <small class="font-monospace">@item.MessageId.ToString().Substring(0, 8)...</small>
+                            </td>
+                            <td>
+                                <a asp-controller="Jobs" asp-action="Details" asp-route-id="@item.JobId" class="text-decoration-none">
+                                    <small class="font-monospace">@item.JobId.ToString().Substring(0, 8)...</small>
+                                </a>
+                            </td>
+                            <td>
+                                <small>@(item.ItemType ?? "Unknown")</small>
+                            </td>
+                            <td>
+                                <small>@(item.ItemIdentifier ?? "N/A")</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-@statusClass">@item.Status</span>
+                            </td>
+                            <td>
+                                @if (item.RetryCount > 0)
+                                {
+                                    <span class="badge bg-warning">@item.RetryCount / @item.MaxRetries</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                <small>@item.CreatedAt.ToLocalTime().ToString("MM-dd HH:mm")</small>
+                            </td>
+                            <td>
+                                @if (item.ProcessedAt.HasValue)
+                                {
+                                    <small>@item.ProcessedAt.Value.ToLocalTime().ToString("MM-dd HH:mm")</small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.ErrorMessage))
+                                {
+                                    <small class="text-danger" title="@item.ErrorMessage">
+                                        @(item.ErrorMessage.Length > 30 ? item.ErrorMessage.Substring(0, 30) + "..." : item.ErrorMessage)
+                                    </small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="viewItemDetails('@item.MessageId')" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                @if (item.Status == "Failed")
+                                {
+                                    <button class="btn btn-sm btn-outline-warning" onclick="retryItem('@item.MessageId')" title="Retry">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                }
+                                @if (item.Status == "Completed" || item.Status == "Failed")
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteItem('@item.MessageId')" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <nav aria-label="Queue items pagination">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <a class="page-link" asp-action="Items"
+                       asp-route-status="@currentStatus"
+                       asp-route-itemType="@currentItemType"
+                       asp-route-search="@currentSearch"
+                       asp-route-page="@(currentPage - 1)"
+                       asp-route-pageSize="@pageSize">
+                        Previous
+                    </a>
+                </li>
+
+                @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                {
+                    <li class="page-item @(i == currentPage ? "active" : "")">
+                        <a class="page-link" asp-action="Items"
+                           asp-route-status="@currentStatus"
+                           asp-route-itemType="@currentItemType"
+                           asp-route-search="@currentSearch"
+                           asp-route-page="@i"
+                           asp-route-pageSize="@pageSize">
+                            @i
+                        </a>
+                    </li>
+                }
+
+                <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                    <a class="page-link" asp-action="Items"
+                       asp-route-status="@currentStatus"
+                       asp-route-itemType="@currentItemType"
+                       asp-route-search="@currentSearch"
+                       asp-route-page="@(currentPage + 1)"
+                       asp-route-pageSize="@pageSize">
+                        Next
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No queue items found matching your criteria.
+        </div>
+    }
+</div>
+
+<!-- Item Details Modal -->
+<div class="modal fade" id="itemDetailsModal" tabindex="-1" aria-labelledby="itemDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="itemDetailsModalLabel">Item Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="itemDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/queue-management.js" asp-append-version="true"></script>
+}

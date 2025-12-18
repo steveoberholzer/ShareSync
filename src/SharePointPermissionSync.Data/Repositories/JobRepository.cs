@@ -149,4 +149,77 @@ public class JobRepository : IJobRepository
         return await _context.ProcessingJobItems
             .FirstOrDefaultAsync(i => i.MessageId == messageId);
     }
+
+    public async Task<List<ProcessingJobItem>> GetAllJobItemsAsync(
+        string? status = null,
+        string? itemType = null,
+        string? searchTerm = null,
+        int skip = 0,
+        int take = 100)
+    {
+        var query = _context.ProcessingJobItems.AsQueryable();
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(i => i.Status == status);
+        }
+
+        if (!string.IsNullOrEmpty(itemType))
+        {
+            query = query.Where(i => i.ItemType == itemType);
+        }
+
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            query = query.Where(i =>
+                i.ItemIdentifier != null && i.ItemIdentifier.Contains(searchTerm) ||
+                i.ErrorMessage != null && i.ErrorMessage.Contains(searchTerm));
+        }
+
+        return await query
+            .OrderByDescending(i => i.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+    }
+
+    public async Task<int> GetAllJobItemsCountAsync(
+        string? status = null,
+        string? itemType = null,
+        string? searchTerm = null)
+    {
+        var query = _context.ProcessingJobItems.AsQueryable();
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(i => i.Status == status);
+        }
+
+        if (!string.IsNullOrEmpty(itemType))
+        {
+            query = query.Where(i => i.ItemType == itemType);
+        }
+
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            query = query.Where(i =>
+                i.ItemIdentifier != null && i.ItemIdentifier.Contains(searchTerm) ||
+                i.ErrorMessage != null && i.ErrorMessage.Contains(searchTerm));
+        }
+
+        return await query.CountAsync();
+    }
+
+    public async Task<bool> DeleteJobItemAsync(Guid messageId)
+    {
+        var item = await _context.ProcessingJobItems
+            .FirstOrDefaultAsync(i => i.MessageId == messageId);
+
+        if (item == null)
+            return false;
+
+        _context.ProcessingJobItems.Remove(item);
+        await _context.SaveChangesAsync();
+        return true;
+    }
 }
