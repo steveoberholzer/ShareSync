@@ -89,4 +89,9 @@ public interface IJobRepository
     /// Delete a job item by message ID
     /// </summary>
     Task<bool> DeleteJobItemAsync(Guid messageId);
+
+    /// <summary>
+    /// Update job priority
+    /// </summary>
+    Task UpdateJobPriorityAsync(Guid jobId, string priority);
 }

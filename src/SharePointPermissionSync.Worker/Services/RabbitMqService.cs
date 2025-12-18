@@ -93,7 +93,8 @@ public class RabbitMqService : IDisposable
         var arguments = new Dictionary<string, object?>
         {
             { "x-dead-letter-exchange", "" },
-            { "x-dead-letter-routing-key", deadLetterQueue }
+            { "x-dead-letter-routing-key", deadLetterQueue },
+            { "x-max-priority", 10 }  // Enable priority support (0-10)
         };
 
         foreach (var queue in queues)
@@ -105,7 +106,7 @@ public class RabbitMqService : IDisposable
                 autoDelete: false,
                 arguments: arguments);
 
-            _logger.LogInformation("Declared queue: {QueueName}", queue);
+            _logger.LogInformation("Declared priority queue: {QueueName} (max-priority: 10)", queue);
         }
     }
 
@@ -169,9 +170,9 @@ public class RabbitMqService : IDisposable
     }
 
     /// <summary>
-    /// Publish a message to a queue
+    /// Publish a message to a queue with priority
     /// </summary>
-    public async Task PublishAsync<TMessage>(string queueName, TMessage message)
+    public async Task PublishAsync<TMessage>(string queueName, TMessage message, int priority = 5)
         where TMessage : QueueMessageBase
     {
         if (_channel == null)
@@ -186,7 +187,8 @@ public class RabbitMqService : IDisposable
             {
                 Persistent = true,
                 MessageId = message.MessageId.ToString(),
-                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
+                Priority = (byte)Math.Clamp(priority, 0, 10)  // Set priority (0-10)
             };
 
             await _channel.BasicPublishAsync(
@@ -197,9 +199,10 @@ public class RabbitMqService : IDisposable
                 body: body);
 
             _logger.LogDebug(
-                "Published message {MessageId} to queue {QueueName}",
+                "Published message {MessageId} to queue {QueueName} with priority {Priority}",
                 message.MessageId,
-                queueName);
+                queueName,
+                priority);
         }
         catch (Exception ex)
         {

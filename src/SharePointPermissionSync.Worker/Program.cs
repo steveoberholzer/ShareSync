@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SharePointPermissionSync.Core.Configuration;
 using SharePointPermissionSync.Data;
 using SharePointPermissionSync.Data.Repositories;
+using SharePointPermissionSync.Data.Services;
 using SharePointPermissionSync.Worker.Handlers;
 using SharePointPermissionSync.Worker.Services;
 using SharePointPermissionSync.Worker.Workers;
@@ -35,6 +36,7 @@ try
 
     // Add Repositories
     builder.Services.AddScoped<IJobRepository, JobRepository>();
+    builder.Services.AddScoped<ILogRepository, LogRepository>();
     builder.Services.AddScoped<IInteractionRepository, InteractionRepository>();
 
     // Add Services
@@ -43,6 +45,7 @@ try
     builder.Services.AddScoped<RabbitMqService>();
     builder.Services.AddScoped<QueueConsumer>();
     builder.Services.AddScoped<MessageProcessor>();
+    builder.Services.AddScoped<LogService>();
 
     // Add Handlers
     builder.Services.AddScoped<InteractionPermissionHandler>();

@@ -61,6 +61,11 @@ public class ProcessingJob
     public string Status { get; set; } = "Queued";
 
     /// <summary>
+    /// Priority level for this job (High, Medium, Low)
+    /// </summary>
+    public string Priority { get; set; } = "Medium";
+
+    /// <summary>
     /// When this job was created
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

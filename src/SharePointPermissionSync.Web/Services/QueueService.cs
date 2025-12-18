@@ -48,9 +48,9 @@ public class QueueService : IDisposable
     }
 
     /// <summary>
-    /// Publish a message to a queue
+    /// Publish a message to a queue with priority
     /// </summary>
-    public async Task PublishAsync<TMessage>(string queueName, TMessage message)
+    public async Task PublishAsync<TMessage>(string queueName, TMessage message, int priority = 5)
         where TMessage : QueueMessageBase
     {
         if (_channel == null)
@@ -65,7 +65,8 @@ public class QueueService : IDisposable
             {
                 Persistent = true,
                 MessageId = message.MessageId.ToString(),
-                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
+                Priority = (byte)Math.Clamp(priority, 0, 10)  // Set priority (0-10)
             };
 
             await _channel!.BasicPublishAsync(
@@ -76,10 +77,11 @@ public class QueueService : IDisposable
                 body: body);
 
             _logger.LogInformation(
-                "Published message {MessageId} to queue {QueueName} (Job: {JobId})",
+                "Published message {MessageId} to queue {QueueName} (Job: {JobId}, Priority: {Priority})",
                 message.MessageId,
                 queueName,
-                message.JobId);
+                message.JobId,
+                priority);
         }
         catch (Exception ex)
         {
@@ -92,26 +94,27 @@ public class QueueService : IDisposable
     }
 
     /// <summary>
-    /// Publish multiple messages in a batch
+    /// Publish multiple messages in a batch with priority
     /// </summary>
-    public async Task PublishBatchAsync<TMessage>(string queueName, IEnumerable<TMessage> messages)
+    public async Task PublishBatchAsync<TMessage>(string queueName, IEnumerable<TMessage> messages, int priority = 5)
         where TMessage : QueueMessageBase
     {
         foreach (var message in messages)
         {
-            await PublishAsync(queueName, message);
+            await PublishAsync(queueName, message, priority);
         }
 
         _logger.LogInformation(
-            "Published {Count} messages to queue {QueueName}",
+            "Published {Count} messages to queue {QueueName} with priority {Priority}",
             messages.Count(),
-            queueName);
+            queueName,
+            priority);
     }
 
     /// <summary>
-    /// Publish a raw JSON message to a queue (for retry scenarios)
+    /// Publish a raw JSON message to a queue (for retry scenarios) with priority
     /// </summary>
-    public async Task PublishMessageAsync(string queueName, string messageJson)
+    public async Task PublishMessageAsync(string queueName, string messageJson, int priority = 5)
     {
         if (_channel == null)
             await InitializeAsync();
@@ -124,7 +127,8 @@ public class QueueService : IDisposable
             {
                 Persistent = true,
                 MessageId = Guid.NewGuid().ToString(),
-                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
+                Priority = (byte)Math.Clamp(priority, 0, 10)  // Set priority (0-10)
             };
 
             await _channel!.BasicPublishAsync(
@@ -135,8 +139,9 @@ public class QueueService : IDisposable
                 body: body);
 
             _logger.LogInformation(
-                "Published raw message to queue {QueueName}",
-                queueName);
+                "Published raw message to queue {QueueName} with priority {Priority}",
+                queueName,
+                priority);
         }
         catch (Exception ex)
         {

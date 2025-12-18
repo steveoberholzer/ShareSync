@@ -39,7 +39,8 @@ public class OperationsController : Controller
     public async Task<IActionResult> UploadInteractionPermissions(
         IFormFile csvFile,
         string environment,
-        string siteUrl)
+        string siteUrl,
+        string priority = "Medium")
     {
         if (csvFile == null || csvFile.Length == 0)
         {
@@ -79,7 +80,8 @@ public class OperationsController : Controller
                 User.Identity?.Name ?? "Anonymous",
                 environment,
                 siteUrl,
-                messages);
+                messages,
+                priority);
 
             _logger.LogInformation(
                 "Created InteractionPermissionSync job {JobId} with {Count} items",
@@ -112,7 +114,8 @@ public class OperationsController : Controller
     public async Task<IActionResult> UploadInteractionCreation(
         IFormFile csvFile,
         string environment,
-        string siteUrl)
+        string siteUrl,
+        string priority = "Medium")
     {
         if (csvFile == null || csvFile.Length == 0)
         {
@@ -153,7 +156,8 @@ public class OperationsController : Controller
                 User.Identity?.Name ?? "Anonymous",
                 environment,
                 siteUrl,
-                messages);
+                messages,
+                priority);
 
             _logger.LogInformation(
                 "Created InteractionCreation job {JobId} with {Count} items",

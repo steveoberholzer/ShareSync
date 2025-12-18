@@ -222,4 +222,16 @@ public class JobRepository : IJobRepository
         await _context.SaveChangesAsync();
         return true;
     }
+
+    public async Task UpdateJobPriorityAsync(Guid jobId, string priority)
+    {
+        var job = await _context.ProcessingJobs
+            .FirstOrDefaultAsync(j => j.JobId == jobId);
+
+        if (job != null)
+        {
+            job.Priority = priority;
+            await _context.SaveChangesAsync();
+        }
+    }
 }

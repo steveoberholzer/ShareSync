@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using SharePointPermissionSync.Data;
 using SharePointPermissionSync.Data.Repositories;
+using SharePointPermissionSync.Data.Services;
 using SharePointPermissionSync.Web.Hubs;
 using SharePointPermissionSync.Web.Services;
 
@@ -31,10 +32,12 @@ builder.Services.AddDbContext<ScyneShareContext>(options =>
 
 // Register repositories
 builder.Services.AddScoped<IJobRepository, JobRepository>();
+builder.Services.AddScoped<ILogRepository, LogRepository>();
 
 // Register application services
 builder.Services.AddSingleton<QueueService>();
 builder.Services.AddScoped<JobService>();
+builder.Services.AddScoped<LogService>();
 
 // Add SignalR
 builder.Services.AddSignalR();

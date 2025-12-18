@@ -22,6 +22,7 @@ public class ScyneShareContext : DbContext
     // New tables for queue system
     public DbSet<ProcessingJob> ProcessingJobs { get; set; }
     public DbSet<ProcessingJobItem> ProcessingJobItems { get; set; }
+    public DbSet<ProcessingJobLog> ProcessingJobLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -113,6 +114,7 @@ public class ScyneShareContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.JobId).IsUnique();
             entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.Priority);
             entity.HasIndex(e => e.CreatedAt);
 
             entity.Property(e => e.JobType).HasMaxLength(50).IsRequired();
@@ -121,6 +123,7 @@ public class ScyneShareContext : DbContext
             entity.Property(e => e.Environment).HasMaxLength(10);
             entity.Property(e => e.SiteUrl).HasMaxLength(500);
             entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Queued");
+            entity.Property(e => e.Priority).HasMaxLength(10).HasDefaultValue("Medium");
 
             entity.HasMany(j => j.Items)
                 .WithOne(i => i.Job)
@@ -141,6 +144,27 @@ public class ScyneShareContext : DbContext
             entity.Property(e => e.ItemType).HasMaxLength(50);
             entity.Property(e => e.ItemIdentifier).HasMaxLength(255);
             entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Pending");
+        });
+
+        // Configure ProcessingJobLog (NEW TABLE - included in migrations)
+        modelBuilder.Entity<ProcessingJobLog>(entity =>
+        {
+            entity.ToTable("ProcessingJobLogs");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.JobId, e.Timestamp });
+            entity.HasIndex(e => e.MessageId);
+            entity.HasIndex(e => e.LogLevel);
+            entity.HasIndex(e => e.Timestamp);
+
+            entity.Property(e => e.LogLevel).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Message).IsRequired();
+            entity.Property(e => e.Source).HasMaxLength(100);
+
+            entity.HasOne(l => l.Job)
+                .WithMany()
+                .HasForeignKey(l => l.JobId)
+                .HasPrincipalKey(j => j.JobId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

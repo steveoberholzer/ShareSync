@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SharePointPermissionSync.Core.Models;
 using SharePointPermissionSync.Core.Models.DTOs;
 using SharePointPermissionSync.Core.Models.Messages;
 using SharePointPermissionSync.Data.Entities;
@@ -37,17 +38,19 @@ public class JobService
         string? uploadedBy,
         string? environment,
         string? siteUrl,
-        IEnumerable<TMessage> messages)
+        IEnumerable<TMessage> messages,
+        string priority = "Medium")
         where TMessage : QueueMessageBase
     {
         var jobId = Guid.NewGuid();
         var messageList = messages.ToList();
 
         _logger.LogInformation(
-            "Creating job {JobId} of type {JobType} with {Count} items",
+            "Creating job {JobId} of type {JobType} with {Count} items (Priority: {Priority})",
             jobId,
             jobType,
-            messageList.Count);
+            messageList.Count,
+            priority);
 
         try
         {
@@ -64,6 +67,7 @@ public class JobService
                 ProcessedItems = 0,
                 FailedItems = 0,
                 Status = "Queued",
+                Priority = priority,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -92,15 +96,17 @@ public class JobService
                 await _jobRepository.AddJobItemAsync(jobItem);
             }
 
-            // Publish messages to queue
+            // Publish messages to queue with priority
             var queueName = GetQueueName(jobType);
-            await _queueService.PublishBatchAsync(queueName, messageList);
+            var priorityValue = JobPriorityHelper.GetPriorityValue(priority);
+            await _queueService.PublishBatchAsync(queueName, messageList, priorityValue);
 
             _logger.LogInformation(
-                "Job {JobId} created successfully with {Count} items published to queue {QueueName}",
+                "Job {JobId} created successfully with {Count} items published to queue {QueueName} (Priority: {Priority})",
                 jobId,
                 messageList.Count,
-                queueName);
+                queueName,
+                priority);
 
             return jobId;
         }
