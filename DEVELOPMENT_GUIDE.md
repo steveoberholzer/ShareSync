@@ -35,6 +35,7 @@ A distributed system to replace unreliable K2 workflows for managing SharePoint 
                       ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                      RabbitMQ Queue                           │
+│  - Priority Queues (max-priority: 10)                        │
 │  - Interaction Permission Updates                             │
 │  - Interaction Creation                                       │
 │  - Dead Letter Queue for failures                            │
@@ -43,7 +44,7 @@ A distributed system to replace unreliable K2 workflows for managing SharePoint 
                       ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                    Worker Service(s)                          │
-│  - FIFO Processing                                            │
+│  - Priority-based Processing (0-10, High/Medium/Low)         │
 │  - Configurable Throttling (500ms-2s delays)                 │
 │  - Exponential Backoff Retry                                 │
 │  - Detailed Logging                                           │
@@ -163,6 +164,7 @@ CREATE TABLE ProcessingJobs (
     ProcessedItems INT DEFAULT 0,
     FailedItems INT DEFAULT 0,
     Status NVARCHAR(20), -- 'Queued', 'Processing', 'Completed', 'Failed'
+    Priority NVARCHAR(10) DEFAULT 'Medium', -- 'High', 'Medium', 'Low'
     CreatedAt DATETIME2 DEFAULT GETDATE(),
     CompletedAt DATETIME2 NULL,
     CONSTRAINT UQ_JobId UNIQUE (JobId)
@@ -426,6 +428,7 @@ CREATE TABLE [ScyneShare].[ProcessingJobs] (
     [ProcessedItems] INT DEFAULT 0,
     [FailedItems] INT DEFAULT 0,
     [Status] NVARCHAR(20) DEFAULT 'Queued', -- 'Queued', 'Processing', 'Completed', 'Failed', 'Paused'
+    [Priority] NVARCHAR(10) DEFAULT 'Medium', -- 'High', 'Medium', 'Low' (maps to RabbitMQ priority 10, 5, 1)
     [CreatedAt] DATETIME2 DEFAULT GETDATE(),
     [StartedAt] DATETIME2 NULL,
     [CompletedAt] DATETIME2 NULL,
@@ -433,6 +436,7 @@ CREATE TABLE [ScyneShare].[ProcessingJobs] (
 );
 
 CREATE INDEX IX_ProcessingJobs_Status ON [ScyneShare].[ProcessingJobs]([Status]);
+CREATE INDEX IX_ProcessingJobs_Priority ON [ScyneShare].[ProcessingJobs]([Priority]);
 CREATE INDEX IX_ProcessingJobs_CreatedAt ON [ScyneShare].[ProcessingJobs]([CreatedAt] DESC);
 ```
 
@@ -564,6 +568,65 @@ SharePointPermissionSync/
 │   └── seed-test-data.sql
 │
 ```
+
+## Priority Queue System
+
+The system implements priority-based message processing using RabbitMQ's priority queue feature. This allows critical jobs to be processed before lower-priority jobs, improving responsiveness for urgent permission changes.
+
+### Priority Levels
+
+**Job Priority Levels:**
+- **High**: Critical/urgent jobs (RabbitMQ priority: 10)
+- **Medium**: Normal priority (RabbitMQ priority: 5) - Default
+- **Low**: Bulk/background jobs (RabbitMQ priority: 1)
+
+### How Priority Works
+
+1. **Job Creation**: User selects priority when uploading CSV (High/Medium/Low)
+2. **Queue Publishing**: Web app maps priority to RabbitMQ priority (10/5/1) when publishing messages
+3. **Worker Processing**: RabbitMQ delivers higher priority messages first
+4. **Database Tracking**: Priority stored in ProcessingJobs table for reporting
+
+### Priority Queue Configuration
+
+RabbitMQ queues are declared with `x-max-priority: 10` argument:
+- Enables priority support (0-10 scale)
+- Higher numbers = higher priority
+- Messages with same priority use FIFO ordering
+
+**Example Queue Declaration:**
+```csharp
+var arguments = new Dictionary<string, object>
+{
+    { "x-dead-letter-exchange", "" },
+    { "x-dead-letter-routing-key", "sharepoint.deadletter" },
+    { "x-max-priority", 10 }  // Enable priority support
+};
+
+await channel.QueueDeclareAsync(
+    queue: "sharepoint.interaction.permissions",
+    durable: true,
+    exclusive: false,
+    autoDelete: false,
+    arguments: arguments);
+```
+
+### Use Cases
+
+**High Priority:**
+- Emergency permission fixes
+- Executive/client-requested changes
+- Time-sensitive compliance updates
+
+**Medium Priority:**
+- Regular permission updates
+- Standard interaction creation
+- Day-to-day operations
+
+**Low Priority:**
+- Bulk historical data corrections
+- Large-scale cleanup operations
+- Non-urgent maintenance tasks
 
 ## Message Queue Structures
 
@@ -1142,6 +1205,11 @@ public class ThrottleManager
       "InteractionCreation": "sharepoint.interaction.creation",
       "RemovePermissions": "sharepoint.remove.permissions",
       "DeadLetter": "sharepoint.deadletter"
+    },
+    "PriorityMapping": {
+      "High": 10,
+      "Medium": 5,
+      "Low": 1
     }
   },
   "SharePoint": {
@@ -1228,6 +1296,11 @@ docker run -d --name rabbitmq \
   rabbitmq:3-management
 ```
 
+**Important**: Queues must support priority. If upgrading from an existing system without priority support:
+1. Delete existing queues: `sharepoint.interaction.permissions`, `sharepoint.interaction.creation`, `sharepoint.remove.permissions`
+2. Worker will automatically recreate them with priority support on first startup
+3. Or use RabbitMQ management console (http://localhost:15672) to delete queues manually
+
 #### 3. Update Configuration
 Edit `appsettings.json` in both Web and Worker projects:
 - Set connection strings
@@ -1240,6 +1313,24 @@ dotnet ef database update --project src/SharePointPermissionSync.Data
 ```
 
 Or run the SQL scripts manually from the database schema section.
+
+**Database Migrations:**
+- Initial migration: `20241218_InitialQueueTables` - Creates ProcessingJobs and ProcessingJobItems tables
+- Priority migration: `20250105_AddPriorityColumn` - Adds Priority column and index to ProcessingJobs
+
+If upgrading from a system without Priority support, apply the migration:
+```bash
+dotnet ef database update --project src/SharePointPermissionSync.Data
+```
+
+Or run the SQL script manually:
+```sql
+ALTER TABLE [ScyneShare].[ProcessingJobs]
+ADD [Priority] NVARCHAR(10) NOT NULL DEFAULT 'Medium';
+
+CREATE INDEX IX_ProcessingJobs_Priority
+ON [ScyneShare].[ProcessingJobs]([Priority]);
+```
 
 #### 5. Run Web Portal
 ```bash
