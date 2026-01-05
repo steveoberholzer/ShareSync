@@ -33,6 +33,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="SourceCode.SmartObjects.Services.ServiceSDK">
+      <HintPath>..\..\..\..\Program Files\K2\Host Server\bin\SourceCode.SmartObjects.Services.ServiceSDK.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Configuration" />
