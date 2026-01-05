@@ -1,0 +1,141 @@
+using System;
+using System.Data;
+using System.Data.SqlClient;
+
+namespace Tecala.SMO.ShareSync.Services
+{
+    /// <summary>
+    /// Service for database operations
+    /// </summary>
+    public class DatabaseService : IDisposable
+    {
+        private readonly string _connectionString;
+        private readonly ILogger _logger;
+        private SqlConnection _connection;
+
+        public DatabaseService(string connectionString, ILogger logger)
+        {
+            _connectionString = connectionString;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Create a new processing job in the database
+        /// </summary>
+        public Guid CreateJob(string jobType, string uploadedBy, string environment, string siteUrl, string priority)
+        {
+            Guid jobId = Guid.NewGuid();
+
+            try
+            {
+                EnsureConnection();
+
+                string sql = @"
+                    INSERT INTO ScyneShare.ProcessingJobs
+                        (JobId, JobType, UploadedBy, Environment, SiteUrl, Priority, Status, CreatedAt, UpdatedAt)
+                    VALUES
+                        (@JobId, @JobType, @UploadedBy, @Environment, @SiteUrl, @Priority, @Status, @CreatedAt, @UpdatedAt)";
+
+                using (var cmd = new SqlCommand(sql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@JobId", jobId);
+                    cmd.Parameters.AddWithValue("@JobType", jobType);
+                    cmd.Parameters.AddWithValue("@UploadedBy", uploadedBy ?? "K2 Broker");
+                    cmd.Parameters.AddWithValue("@Environment", environment);
+                    cmd.Parameters.AddWithValue("@SiteUrl", siteUrl ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@Priority", priority ?? "Medium");
+                    cmd.Parameters.AddWithValue("@Status", "Queued");
+                    cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
+                    cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.UtcNow);
+
+                    cmd.ExecuteNonQuery();
+                }
+
+                _logger.LogInformation($"Created job {jobId} of type {jobType}");
+                return jobId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to create job of type {jobType}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Create a job item for tracking individual messages
+        /// </summary>
+        public void CreateJobItem(Guid jobId, Guid messageId, string itemType, string itemIdentifier)
+        {
+            try
+            {
+                EnsureConnection();
+
+                string sql = @"
+                    INSERT INTO ScyneShare.ProcessingJobItems
+                        (JobId, MessageId, ItemType, ItemIdentifier, Status, CreatedAt)
+                    VALUES
+                        (@JobId, @MessageId, @ItemType, @ItemIdentifier, @Status, @CreatedAt)";
+
+                using (var cmd = new SqlCommand(sql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@JobId", jobId);
+                    cmd.Parameters.AddWithValue("@MessageId", messageId);
+                    cmd.Parameters.AddWithValue("@ItemType", itemType);
+                    cmd.Parameters.AddWithValue("@ItemIdentifier", itemIdentifier ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@Status", "Pending");
+                    cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
+
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to create job item for message {messageId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Get job status by Job ID
+        /// </summary>
+        public string GetJobStatus(Guid jobId)
+        {
+            try
+            {
+                EnsureConnection();
+
+                string sql = "SELECT Status FROM ScyneShare.ProcessingJobs WHERE JobId = @JobId";
+
+                using (var cmd = new SqlCommand(sql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@JobId", jobId);
+                    var result = cmd.ExecuteScalar();
+                    return result?.ToString() ?? "Unknown";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to get job status for {jobId}");
+                throw;
+            }
+        }
+
+        private void EnsureConnection()
+        {
+            if (_connection == null)
+            {
+                _connection = new SqlConnection(_connectionString);
+            }
+
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
+        }
+
+        public void Dispose()
+        {
+            _connection?.Dispose();
+        }
+    }
+}
