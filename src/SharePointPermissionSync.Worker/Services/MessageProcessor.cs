@@ -55,6 +55,9 @@ public class MessageProcessor
                 message.MessageId,
                 "Processing");
 
+            // Mark job as started if this is the first item being processed
+            await EnsureJobStartedAsync(message.JobId);
+
             // Route to appropriate handler
             OperationResult result = message switch
             {
@@ -131,6 +134,9 @@ public class MessageProcessor
         // Increment processed count
         await _jobRepository.IncrementProcessedCountAsync(message.JobId);
 
+        // Check if all items in the job are complete
+        await CheckAndUpdateJobStatusAsync(message.JobId);
+
         // Report success to throttle manager
         _throttleManager.ReportSuccess();
 
@@ -179,6 +185,9 @@ public class MessageProcessor
 
             await _jobRepository.IncrementFailedCountAsync(message.JobId);
 
+            // Check if all items in the job are complete (including failures)
+            await CheckAndUpdateJobStatusAsync(message.JobId);
+
             await _rabbitMqService.PublishToDeadLetterAsync(message);
 
             _logger.LogError(
@@ -219,5 +228,108 @@ public class MessageProcessor
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Ensure job is marked as started when first item begins processing
+    /// </summary>
+    private async Task EnsureJobStartedAsync(Guid jobId)
+    {
+        try
+        {
+            var job = await _jobRepository.GetJobByIdAsync(jobId);
+            if (job != null && job.Status == "Queued")
+            {
+                await _jobRepository.MarkJobAsStartedAsync(jobId);
+                _logger.LogInformation(
+                    "Job {JobId} marked as Processing (first item started)",
+                    jobId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Failed to mark job {JobId} as started (non-critical)",
+                jobId);
+        }
+    }
+
+    /// <summary>
+    /// Check if all job items are complete and update job status accordingly
+    /// </summary>
+    private async Task CheckAndUpdateJobStatusAsync(Guid jobId)
+    {
+        try
+        {
+            var job = await _jobRepository.GetJobByIdAsync(jobId);
+            if (job == null)
+            {
+                _logger.LogWarning("Job {JobId} not found when checking completion status", jobId);
+                return;
+            }
+
+            // Get all job items
+            var allItems = await _jobRepository.GetJobItemsAsync(jobId);
+            if (!allItems.Any())
+            {
+                _logger.LogWarning("Job {JobId} has no items", jobId);
+                return;
+            }
+
+            // Count items by status
+            var totalItems = allItems.Count;
+            var completedItems = allItems.Count(i => i.Status == "Completed");
+            var failedItems = allItems.Count(i => i.Status == "Failed");
+            var pendingItems = allItems.Count(i => i.Status == "Pending" || i.Status == "Processing" || i.Status == "Requeued");
+
+            _logger.LogInformation(
+                "Job {JobId} status check: {Completed}/{Total} completed, {Failed} failed, {Pending} pending",
+                jobId, completedItems, totalItems, failedItems, pendingItems);
+
+            // If all items are complete (succeeded or failed), mark job as complete
+            if (pendingItems == 0)
+            {
+                if (failedItems == totalItems)
+                {
+                    // All items failed
+                    await _jobRepository.UpdateJobStatusAsync(
+                        jobId,
+                        "Failed",
+                        $"All {totalItems} items failed");
+
+                    _logger.LogWarning(
+                        "Job {JobId} marked as Failed - all items failed",
+                        jobId);
+                }
+                else if (failedItems > 0)
+                {
+                    // Some items failed
+                    await _jobRepository.MarkJobAsCompletedAsync(jobId);
+                    await _jobRepository.UpdateJobStatusAsync(
+                        jobId,
+                        "Completed with Errors",
+                        $"{failedItems} of {totalItems} items failed");
+
+                    _logger.LogWarning(
+                        "Job {JobId} marked as Completed with Errors - {Failed}/{Total} items failed",
+                        jobId, failedItems, totalItems);
+                }
+                else
+                {
+                    // All items succeeded
+                    await _jobRepository.MarkJobAsCompletedAsync(jobId);
+
+                    _logger.LogInformation(
+                        "Job {JobId} marked as Completed - all {Total} items succeeded",
+                        jobId, totalItems);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to update job {JobId} completion status (non-critical)",
+                jobId);
+        }
     }
 }

@@ -46,6 +46,7 @@ try
     builder.Services.AddScoped<QueueConsumer>();
     builder.Services.AddScoped<MessageProcessor>();
     builder.Services.AddScoped<LogService>();
+    builder.Services.AddScoped<StartupValidator>();
 
     // Add Handlers
     builder.Services.AddScoped<InteractionPermissionHandler>();
@@ -58,6 +59,30 @@ try
     var host = builder.Build();
 
     Log.Information("Worker Service configured successfully");
+
+    // Perform startup validation before starting the service
+    Log.Information("Performing startup validation checks...");
+
+    using (var scope = host.Services.CreateScope())
+    {
+        var startupValidator = scope.ServiceProvider.GetRequiredService<StartupValidator>();
+        var validationResult = await startupValidator.ValidateStartupAsync();
+
+        if (!validationResult)
+        {
+            Log.Fatal("Startup validation failed. Service cannot start. Please check the errors above and fix the issues.");
+            Log.Information("Common issues:");
+            Log.Information("  1. RabbitMQ not installed - Download from: https://www.rabbitmq.com/download.html");
+            Log.Information("  2. RabbitMQ service not running - Run: net start RabbitMQ");
+            Log.Information("  3. Database not accessible - Check connection string and SQL Server status");
+            Log.Information("  4. Missing database tables - Run: dotnet ef database update");
+            Log.CloseAndFlush();
+            Environment.Exit(1);
+            return;
+        }
+    }
+
+    Log.Information("All startup validations passed. Starting worker service...");
 
     await host.RunAsync();
 }
