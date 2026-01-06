@@ -134,7 +134,11 @@ public class RabbitMqService : IDisposable
                 _logger.LogDebug("Received message from {QueueName}: {Message}",
                     queueName, messageJson);
 
-                var message = JsonSerializer.Deserialize<TMessage>(messageJson);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var message = JsonSerializer.Deserialize<TMessage>(messageJson, options);
 
                 if (message != null)
                 {

@@ -39,7 +39,8 @@
       "Bash(timeout:*)",
       "Bash(dotnet restore:*)",
       "Bash(msbuild:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(dotnet tool list:*)"
     ]
   }
 }

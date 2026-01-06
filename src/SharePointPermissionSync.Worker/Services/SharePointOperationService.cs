@@ -157,16 +157,18 @@ public class SharePointOperationService
                     ListOfExternalEmailAddresses = string.Join(";", externalUserEmails)
                 };
 
-                // Call the broker method
-                service.NewInteraction();
+                // Call the broker method - it returns the service with updated properties
+                service = service.NewInteraction();
 
                 if (service.Success)
                 {
+                    // After NewInteraction(), the folder ID is in InteractionID property, not ID
+                    int folderId = service.InteractionID;
                     _logger.LogInformation(
                         "Successfully created Interaction '{InteractionName}' with folder ID {FolderId}",
                         interactionName,
-                        service.ID);
-                    return OperationResult<int>.SuccessResult(service.ID);
+                        folderId);
+                    return OperationResult<int>.SuccessResult(folderId);
                 }
                 else
                 {
@@ -274,16 +276,18 @@ public class SharePointOperationService
                     EngagementSubfolder = engagementSubfolder ?? string.Empty
                 };
 
-                // Call the broker method
-                service.NewProject();
+                // Call the broker method - it returns the service with updated properties
+                service = service.NewProject();
 
                 if (service.Success)
                 {
+                    // After NewProject(), the folder ID is in ProjectID property, not ID
+                    int folderId = service.ProjectID;
                     _logger.LogInformation(
                         "Successfully created Project '{ProjectName}' with folder ID {FolderId}",
                         projectName,
-                        service.ID);
-                    return OperationResult<int>.SuccessResult(service.ID);
+                        folderId);
+                    return OperationResult<int>.SuccessResult(folderId);
                 }
                 else
                 {
