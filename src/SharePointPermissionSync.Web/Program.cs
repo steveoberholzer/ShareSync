@@ -33,6 +33,7 @@ builder.Services.AddDbContext<ScyneShareContext>(options =>
 // Register repositories
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<ILogRepository, LogRepository>();
+builder.Services.AddScoped<IInteractionRepository, InteractionRepository>();
 
 // Register application services
 builder.Services.AddSingleton<QueueService>();
