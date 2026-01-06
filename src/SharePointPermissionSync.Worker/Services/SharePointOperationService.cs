@@ -59,6 +59,8 @@ public class SharePointOperationService
 
     /// <summary>
     /// Apply permissions to an existing interaction folder
+    /// Uses ParticipantChangeInteraction for specific users instead of PermissionChangeInteraction
+    /// which would affect all users and cascade to all subfolders
     /// </summary>
     public async Task<OperationResult> ApplyInteractionPermissionsAsync(
         InteractionPermissionMessage message)
@@ -73,40 +75,80 @@ public class SharePointOperationService
                     message.InteractionId,
                     message.InteractionSharePointFolderId);
 
-                var service = new SharePointService
-                {
-                    ServiceConfiguration = _serviceConfig!,
-                    SiteUrl = message.SiteUrl,
-                    DocumentLibrary = message.DocumentLibrary,
-                    InteractionID = message.InteractionSharePointFolderId, // Now uses explicit SharePointFolderId
-                    InternalPermission = message.InternalPermission,
-                    ListOfInternalEmailAddresses = string.Join(";", message.InternalUserEmails),
-                    ExternalPermission = message.ExternalPermission ?? string.Empty,
-                    ListOfExternalEmailAddresses = string.Join(";", message.ExternalUserEmails)
-                };
-
-                // Call the broker method
-                service.PermissionChangeInteraction();
-
-                if (service.Success)
+                // Apply internal permissions if users are specified
+                if (message.InternalUserEmails != null && message.InternalUserEmails.Any())
                 {
                     _logger.LogInformation(
-                        "Successfully applied permissions for Interaction '{InteractionName}' (ID: {InteractionId})",
-                        message.InteractionName,
-                        message.InteractionId);
-                    return OperationResult.SuccessResult();
+                        "Applying internal permissions ({Permission}) for {Count} users",
+                        message.InternalPermission,
+                        message.InternalUserEmails.Count);
+
+                    var internalService = new SharePointService
+                    {
+                        ServiceConfiguration = _serviceConfig!,
+                        SiteUrl = message.SiteUrl,
+                        DocumentLibrary = message.DocumentLibrary,
+                        InteractionID = message.InteractionSharePointFolderId,
+                        ListOfEmailAddresses = string.Join(";", message.InternalUserEmails),
+                        Permission = message.InternalPermission
+                    };
+
+                    internalService = internalService.ParticipantChangeInteraction();
+
+                    if (!internalService.Success)
+                    {
+                        _logger.LogWarning(
+                            "Failed to apply internal permissions: {ErrorMessage}",
+                            internalService.ErrorMessage);
+                        return OperationResult.FailureResult(
+                            $"Failed to apply internal permissions: {internalService.ErrorMessage}",
+                            internalService.ErrorNumber);
+                    }
+
+                    _logger.LogInformation("Successfully applied internal permissions");
                 }
-                else
+
+                // Apply external permissions if users are specified
+                if (!string.IsNullOrWhiteSpace(message.ExternalPermission) &&
+                    message.ExternalUserEmails != null &&
+                    message.ExternalUserEmails.Any())
                 {
-                    _logger.LogWarning(
-                        "Failed to apply permissions for Interaction '{InteractionName}' (ID: {InteractionId}): {ErrorMessage}",
-                        message.InteractionName,
-                        message.InteractionId,
-                        service.ErrorMessage);
-                    return OperationResult.FailureResult(
-                        service.ErrorMessage ?? "Unknown error",
-                        service.ErrorNumber);
+                    _logger.LogInformation(
+                        "Applying external permissions ({Permission}) for {Count} users",
+                        message.ExternalPermission,
+                        message.ExternalUserEmails.Count);
+
+                    var externalService = new SharePointService
+                    {
+                        ServiceConfiguration = _serviceConfig!,
+                        SiteUrl = message.SiteUrl,
+                        DocumentLibrary = message.DocumentLibrary,
+                        InteractionID = message.InteractionSharePointFolderId,
+                        ListOfEmailAddresses = string.Join(";", message.ExternalUserEmails),
+                        Permission = message.ExternalPermission
+                    };
+
+                    externalService = externalService.ParticipantChangeInteraction();
+
+                    if (!externalService.Success)
+                    {
+                        _logger.LogWarning(
+                            "Failed to apply external permissions: {ErrorMessage}",
+                            externalService.ErrorMessage);
+                        return OperationResult.FailureResult(
+                            $"Failed to apply external permissions: {externalService.ErrorMessage}",
+                            externalService.ErrorNumber);
+                    }
+
+                    _logger.LogInformation("Successfully applied external permissions");
                 }
+
+                _logger.LogInformation(
+                    "Successfully applied all permissions for Interaction '{InteractionName}' (ID: {InteractionId})",
+                    message.InteractionName,
+                    message.InteractionId);
+
+                return OperationResult.SuccessResult();
             }
             catch (Exception ex)
             {
