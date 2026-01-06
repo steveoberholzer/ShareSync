@@ -55,7 +55,9 @@ public class OperationsController : Controller
             using var reader = new StreamReader(csvFile.OpenReadStream());
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                HasHeaderRecord = true
+                HasHeaderRecord = true,
+                MissingFieldFound = null, // Ignore missing fields
+                HeaderValidated = null    // Don't validate headers
             });
 
             var records = csv.GetRecords<InteractionPermissionCsvRow>().ToList();
@@ -216,7 +218,9 @@ public class OperationsController : Controller
             using var reader = new StreamReader(csvFile.OpenReadStream());
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                HasHeaderRecord = true
+                HasHeaderRecord = true,
+                MissingFieldFound = null, // Ignore missing fields
+                HeaderValidated = null    // Don't validate headers
             });
 
             var records = csv.GetRecords<InteractionCreationCsvRow>().ToList();
