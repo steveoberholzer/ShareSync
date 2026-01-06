@@ -68,16 +68,17 @@ public class SharePointOperationService
             try
             {
                 _logger.LogInformation(
-                    "Applying permissions for Interaction {InteractionId} in folder {FolderId}",
+                    "Applying permissions for Interaction '{InteractionName}' (ID: {InteractionId}, Folder: {FolderId})",
+                    message.InteractionName,
                     message.InteractionId,
-                    message.SharePointFolderId);
+                    message.InteractionSharePointFolderId);
 
                 var service = new SharePointService
                 {
                     ServiceConfiguration = _serviceConfig!,
                     SiteUrl = message.SiteUrl,
                     DocumentLibrary = message.DocumentLibrary,
-                    InteractionID = message.SharePointFolderId,
+                    InteractionID = message.InteractionSharePointFolderId, // Now uses explicit SharePointFolderId
                     InternalPermission = message.InternalPermission,
                     ListOfInternalEmailAddresses = string.Join(";", message.InternalUserEmails),
                     ExternalPermission = message.ExternalPermission ?? string.Empty,
@@ -90,14 +91,16 @@ public class SharePointOperationService
                 if (service.Success)
                 {
                     _logger.LogInformation(
-                        "Successfully applied permissions for Interaction {InteractionId}",
+                        "Successfully applied permissions for Interaction '{InteractionName}' (ID: {InteractionId})",
+                        message.InteractionName,
                         message.InteractionId);
                     return OperationResult.SuccessResult();
                 }
                 else
                 {
                     _logger.LogWarning(
-                        "Failed to apply permissions for Interaction {InteractionId}: {ErrorMessage}",
+                        "Failed to apply permissions for Interaction '{InteractionName}' (ID: {InteractionId}): {ErrorMessage}",
+                        message.InteractionName,
                         message.InteractionId,
                         service.ErrorMessage);
                     return OperationResult.FailureResult(
@@ -108,7 +111,8 @@ public class SharePointOperationService
             catch (Exception ex)
             {
                 _logger.LogError(ex,
-                    "Exception applying permissions for Interaction {InteractionId}",
+                    "Exception applying permissions for Interaction '{InteractionName}' (ID: {InteractionId})",
+                    message.InteractionName,
                     message.InteractionId);
                 return OperationResult.FailureResult(ex.Message);
             }
@@ -117,31 +121,40 @@ public class SharePointOperationService
 
     /// <summary>
     /// Create a new interaction folder with permissions
+    /// Now accepts ProjectSharePointFolderId directly instead of deriving from ProjectId
     /// </summary>
     public async Task<OperationResult<int>> CreateInteractionAsync(
-        InteractionCreationMessage message)
+        string siteUrl,
+        string documentLibrary,
+        int projectSharePointFolderId,
+        string interactionName,
+        string projectSubfolder,
+        string internalPermission,
+        List<string> internalUserEmails,
+        string externalPermission,
+        List<string> externalUserEmails)
     {
         return await Task.Run(() =>
         {
             try
             {
                 _logger.LogInformation(
-                    "Creating Interaction '{InteractionName}' for Project {ProjectId}",
-                    message.InteractionName,
-                    message.ProjectId);
+                    "Creating Interaction '{InteractionName}' under Project folder {ProjectFolderId}",
+                    interactionName,
+                    projectSharePointFolderId);
 
                 var service = new SharePointService
                 {
                     ServiceConfiguration = _serviceConfig!,
-                    SiteUrl = message.SiteUrl,
-                    DocumentLibrary = message.DocumentLibrary,
-                    ProjectID = message.ProjectId,
-                    InteractionName = message.InteractionName,
-                    ProjectSubfolder = message.ProjectSubfolder ?? string.Empty,
-                    InternalPermission = message.InternalPermission,
-                    ListOfInternalEmailAddresses = string.Join(";", message.InternalUserEmails),
-                    ExternalPermission = message.ExternalPermission ?? string.Empty,
-                    ListOfExternalEmailAddresses = string.Join(";", message.ExternalUserEmails)
+                    SiteUrl = siteUrl,
+                    DocumentLibrary = documentLibrary,
+                    ProjectID = projectSharePointFolderId, // Now using SharePoint folder ID directly
+                    InteractionName = interactionName,
+                    ProjectSubfolder = projectSubfolder ?? string.Empty,
+                    InternalPermission = internalPermission,
+                    ListOfInternalEmailAddresses = string.Join(";", internalUserEmails),
+                    ExternalPermission = externalPermission ?? string.Empty,
+                    ListOfExternalEmailAddresses = string.Join(";", externalUserEmails)
                 };
 
                 // Call the broker method
@@ -151,7 +164,7 @@ public class SharePointOperationService
                 {
                     _logger.LogInformation(
                         "Successfully created Interaction '{InteractionName}' with folder ID {FolderId}",
-                        message.InteractionName,
+                        interactionName,
                         service.ID);
                     return OperationResult<int>.SuccessResult(service.ID);
                 }
@@ -159,7 +172,7 @@ public class SharePointOperationService
                 {
                     _logger.LogWarning(
                         "Failed to create Interaction '{InteractionName}': {ErrorMessage}",
-                        message.InteractionName,
+                        interactionName,
                         service.ErrorMessage);
                     return OperationResult<int>.FailureResult(
                         service.ErrorMessage ?? "Unknown error",
@@ -170,7 +183,7 @@ public class SharePointOperationService
             {
                 _logger.LogError(ex,
                     "Exception creating Interaction '{InteractionName}'",
-                    message.InteractionName);
+                    interactionName);
                 return OperationResult<int>.FailureResult(ex.Message);
             }
         });
@@ -227,6 +240,68 @@ public class SharePointOperationService
                     "Exception closing Interaction {InteractionId}",
                     interactionId);
                 return OperationResult.FailureResult(ex.Message);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Create a new project folder
+    /// Uses Tecala.SMO.SharePoint broker's NewProject method
+    /// </summary>
+    public async Task<OperationResult<int>> CreateProjectAsync(
+        string siteUrl,
+        string documentLibrary,
+        int engagementSharePointFolderId,
+        string projectName,
+        string engagementSubfolder = "")
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Creating Project '{ProjectName}' under Engagement folder {EngagementId}",
+                    projectName,
+                    engagementSharePointFolderId);
+
+                var service = new SharePointService
+                {
+                    ServiceConfiguration = _serviceConfig!,
+                    SiteUrl = siteUrl,
+                    DocumentLibrary = documentLibrary,
+                    EngagementID = engagementSharePointFolderId,
+                    ProjectName = projectName,
+                    EngagementSubfolder = engagementSubfolder ?? string.Empty
+                };
+
+                // Call the broker method
+                service.NewProject();
+
+                if (service.Success)
+                {
+                    _logger.LogInformation(
+                        "Successfully created Project '{ProjectName}' with folder ID {FolderId}",
+                        projectName,
+                        service.ID);
+                    return OperationResult<int>.SuccessResult(service.ID);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Failed to create Project '{ProjectName}': {ErrorMessage}",
+                        projectName,
+                        service.ErrorMessage);
+                    return OperationResult<int>.FailureResult(
+                        service.ErrorMessage ?? "Unknown error",
+                        service.ErrorNumber);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Exception creating Project '{ProjectName}'",
+                    projectName);
+                return OperationResult<int>.FailureResult(ex.Message);
             }
         });
     }

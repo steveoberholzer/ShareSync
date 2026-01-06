@@ -46,4 +46,14 @@ public interface IInteractionRepository
     /// Get an engagement by ID
     /// </summary>
     Task<Engagement?> GetEngagementByIdAsync(Guid id);
+
+    /// <summary>
+    /// Update project's SharePoint folder ID
+    /// </summary>
+    Task UpdateProjectSharePointFolderIdAsync(Guid projectId, int folderId);
+
+    /// <summary>
+    /// Update engagement's SharePoint folder ID
+    /// </summary>
+    Task UpdateEngagementSharePointFolderIdAsync(Guid engagementId, int folderId);
 }

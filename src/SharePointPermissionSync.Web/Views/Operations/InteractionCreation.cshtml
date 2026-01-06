@@ -73,9 +73,9 @@
                 <div class="card-body">
                     <p class="mb-2"><strong>Required Columns:</strong></p>
                     <ul class="small mb-3">
-                        <li><code>InteractionName</code> - Name of the interaction folder</li>
-                        <li><code>ProjectId</code> - Project ID (integer)</li>
-                        <li><code>EngagementId</code> - Engagement ID (integer)</li>
+                        <li><code>InteractionId</code> - Interaction ID (GUID)</li>
+                        <li><code>ProjectId</code> - Project ID (GUID)</li>
+                        <li><code>EngagementId</code> - Engagement ID (GUID)</li>
                     </ul>
 
                     <p class="mb-2"><strong>Optional Columns:</strong></p>
@@ -89,8 +89,8 @@
                     </ul>
 
                     <p class="mb-2"><strong>Example:</strong></p>
-                    <pre class="bg-light p-2 small"><code>InteractionName,ProjectId,EngagementId,ProjectSubfolder,InternalPermission,InternalUserEmails
-"New Interaction",456,789,"2024",Edit,user1@domain.com;user2@domain.com</code></pre>
+                    <pre class="bg-light p-2 small"><code>InteractionId,ProjectId,EngagementId,ProjectSubfolder,InternalPermission,InternalUserEmails
+a1b2c3d4-e5f6-7890-abcd-ef1234567890,b2c3d4e5-f6a7-8901-bcde-f12345678901,c3d4e5f6-a7b8-9012-cdef-123456789012,"2024",Edit,user1@domain.com;user2@domain.com</code></pre>
                 </div>
             </div>
 
@@ -101,7 +101,9 @@
                 <div class="card-body">
                     <ul class="small mb-0">
                         <li>CSV file must have headers</li>
-                        <li>Interaction names should be unique</li>
+                        <li>All IDs must be valid GUIDs from the database</li>
+                        <li>Interaction names are automatically retrieved from the database</li>
+                        <li>Project folders will be created automatically if they don't exist</li>
                         <li>Multiple email addresses must be separated by semicolons</li>
                         <li>Valid permission levels: Read, Edit, Contribute, Full Control</li>
                         <li>Folders will be created under the specified project subfolder</li>

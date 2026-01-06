@@ -128,6 +128,121 @@ namespace Tecala.SMO.ShareSync.Services
             }
         }
 
+        /// <summary>
+        /// Get interaction details by ID
+        /// </summary>
+        public (string Name, int? InteractionNumber, int? SharePointFolderID) GetInteractionDetails(Guid interactionId)
+        {
+            try
+            {
+                EnsureConnection();
+
+                string sql = @"
+                    SELECT Name, InteractionNumber, SharePointFolderID
+                    FROM ScyneShare.Interaction
+                    WHERE Id = @Id";
+
+                using (var cmd = new SqlCommand(sql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@Id", interactionId);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return (
+                                reader["Name"]?.ToString(),
+                                reader["InteractionNumber"] as int?,
+                                reader["SharePointFolderID"] as int?
+                            );
+                        }
+                    }
+                }
+
+                throw new Exception($"Interaction {interactionId} not found");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to get interaction details for {interactionId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Get project details by ID
+        /// </summary>
+        public (string Name, int? SharePointFolderID) GetProjectDetails(Guid projectId)
+        {
+            try
+            {
+                EnsureConnection();
+
+                string sql = @"
+                    SELECT Name, SharePointFolderID
+                    FROM ScyneShare.Project
+                    WHERE Id = @Id";
+
+                using (var cmd = new SqlCommand(sql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@Id", projectId);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return (
+                                reader["Name"]?.ToString(),
+                                reader["SharePointFolderID"] as int?
+                            );
+                        }
+                    }
+                }
+
+                throw new Exception($"Project {projectId} not found");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to get project details for {projectId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Get engagement details by ID
+        /// </summary>
+        public (string Name, int? SharePointFolderID) GetEngagementDetails(Guid engagementId)
+        {
+            try
+            {
+                EnsureConnection();
+
+                string sql = @"
+                    SELECT Name, SharePointFolderID
+                    FROM ScyneShare.Engagement
+                    WHERE Id = @Id";
+
+                using (var cmd = new SqlCommand(sql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@Id", engagementId);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return (
+                                reader["Name"]?.ToString(),
+                                reader["SharePointFolderID"] as int?
+                            );
+                        }
+                    }
+                }
+
+                throw new Exception($"Engagement {engagementId} not found");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to get engagement details for {engagementId}");
+                throw;
+            }
+        }
+
         private void EnsureConnection()
         {
             if (_connection == null)

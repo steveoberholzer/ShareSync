@@ -28,43 +28,137 @@ public class InteractionCreationHandler : IOperationHandler<InteractionCreationM
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
-            "Handling creation of Interaction '{InteractionName}' for Project {ProjectId}",
+            "Handling creation of Interaction '{InteractionName}' (ID: {InteractionId}) " +
+            "for Project '{ProjectName}' (ID: {ProjectId})",
             message.InteractionName,
+            message.InteractionId,
+            message.ProjectName,
             message.ProjectId);
 
         try
         {
-            var result = await _sharePointService.CreateInteractionAsync(message);
+            int projectSharePointFolderId;
 
-            if (result.Success && result.Data > 0)
+            // === STEP 1: Check if Project folder exists, create if needed ===
+            if (!message.ProjectSharePointFolderId.HasValue || message.ProjectSharePointFolderId.Value <= 0)
             {
-                // Update the message with the created folder ID
-                message.CreatedSharePointFolderId = result.Data;
+                _logger.LogInformation(
+                    "Project '{ProjectName}' (ID: {ProjectId}) has no SharePoint folder, creating...",
+                    message.ProjectName,
+                    message.ProjectId);
+
+                // Validate that Engagement folder exists
+                if (!message.EngagementSharePointFolderId.HasValue ||
+                    message.EngagementSharePointFolderId.Value <= 0)
+                {
+                    string error = $"Cannot create Project '{message.ProjectName}': " +
+                                 $"Engagement '{message.EngagementName}' has no SharePoint folder ID. " +
+                                 "Engagement folders must be created first.";
+                    _logger.LogError(error);
+                    return OperationResult.FailureResult(error, errorCode: 1001);
+                }
+
+                // Create Project folder using SharePoint broker
+                var projectResult = await _sharePointService.CreateProjectAsync(
+                    message.SiteUrl,
+                    message.DocumentLibrary,
+                    message.EngagementSharePointFolderId.Value,
+                    message.ProjectName,
+                    engagementSubfolder: string.Empty);
+
+                if (!projectResult.Success || projectResult.Data <= 0)
+                {
+                    string error = $"Failed to create Project folder '{message.ProjectName}': " +
+                                 $"{projectResult.ErrorMessage ?? "Unknown error"}";
+                    _logger.LogError(error);
+                    return OperationResult.FailureResult(error, projectResult.ErrorCode);
+                }
+
+                projectSharePointFolderId = projectResult.Data;
+                message.CreatedProjectSharePointFolderId = projectSharePointFolderId;
+
+                // Update database with new Project SharePoint folder ID
+                await _interactionRepository.UpdateProjectSharePointFolderIdAsync(
+                    message.ProjectId,
+                    projectSharePointFolderId);
 
                 _logger.LogInformation(
-                    "Successfully created Interaction '{InteractionName}' with folder ID {FolderId}",
-                    message.InteractionName,
-                    result.Data);
-
-                // TODO: Optionally update the database with the new folder ID
-                // This would require knowing the interaction ID, which might need to be added to the message
-
-                return OperationResult.SuccessResult();
+                    "Successfully created Project folder '{ProjectName}' with SharePoint ID {FolderId}",
+                    message.ProjectName,
+                    projectSharePointFolderId);
             }
             else
             {
-                _logger.LogWarning(
-                    "Failed to create Interaction '{InteractionName}': {ErrorMessage}",
-                    message.InteractionName,
-                    result.ErrorMessage);
-                return OperationResult.FailureResult(result.ErrorMessage ?? "Unknown error", result.ErrorCode);
+                projectSharePointFolderId = message.ProjectSharePointFolderId.Value;
+                _logger.LogInformation(
+                    "Project '{ProjectName}' already has SharePoint folder ID {FolderId}",
+                    message.ProjectName,
+                    projectSharePointFolderId);
             }
+
+            // === STEP 2: Create Interaction folder ===
+            _logger.LogInformation(
+                "Creating Interaction folder '{InteractionName}' under Project folder {ProjectFolderId}",
+                message.InteractionName,
+                projectSharePointFolderId);
+
+            var interactionResult = await _sharePointService.CreateInteractionAsync(
+                message.SiteUrl,
+                message.DocumentLibrary,
+                projectSharePointFolderId,
+                message.InteractionName,
+                message.ProjectSubfolder,
+                message.InternalPermission,
+                message.InternalUserEmails,
+                message.ExternalPermission,
+                message.ExternalUserEmails);
+
+            if (!interactionResult.Success || interactionResult.Data <= 0)
+            {
+                string error = $"Failed to create Interaction folder '{message.InteractionName}': " +
+                             $"{interactionResult.ErrorMessage ?? "Unknown error"}";
+                _logger.LogError(error);
+                return OperationResult.FailureResult(error, interactionResult.ErrorCode);
+            }
+
+            int interactionSharePointFolderId = interactionResult.Data;
+            message.CreatedInteractionSharePointFolderId = interactionSharePointFolderId;
+
+            // === STEP 3: Update database with Interaction SharePoint folder ID ===
+            await _interactionRepository.UpdateSharePointFolderIdAsync(
+                message.InteractionId,
+                interactionSharePointFolderId);
+
+            _logger.LogInformation(
+                "Successfully created Interaction '{InteractionName}' with SharePoint folder ID {FolderId}. " +
+                "Database updated.",
+                message.InteractionName,
+                interactionSharePointFolderId);
+
+            // === STEP 4: Optionally update user lists in database ===
+            if (message.InternalUserEmails.Any() || message.ExternalUserEmails.Any())
+            {
+                string internalUsers = string.Join(";", message.InternalUserEmails);
+                string externalUsers = string.Join(";", message.ExternalUserEmails);
+
+                await _interactionRepository.UpdateUserListsAsync(
+                    message.InteractionId,
+                    internalUsers,
+                    externalUsers);
+
+                _logger.LogInformation(
+                    "Updated user lists for Interaction {InteractionId}",
+                    message.InteractionId);
+            }
+
+            return OperationResult.SuccessResult();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Exception handling creation of Interaction '{InteractionName}'",
-                message.InteractionName);
+                "Exception handling creation of Interaction '{InteractionName}' (ID: {InteractionId})",
+                message.InteractionName,
+                message.InteractionId);
             return OperationResult.FailureResult(ex.Message);
         }
     }

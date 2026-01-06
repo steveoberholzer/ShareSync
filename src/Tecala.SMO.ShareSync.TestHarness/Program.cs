@@ -77,23 +77,20 @@ namespace Tecala.SMO.ShareSync.TestHarness
             try
             {
                 // Get input from user
-                Console.Write("Interaction ID: ");
-                int interactionId = int.Parse(Console.ReadLine());
+                Console.Write("Interaction ID (GUID): ");
+                string interactionId = Console.ReadLine();
 
-                Console.Write("Project ID: ");
-                int projectId = int.Parse(Console.ReadLine());
+                Console.Write("Project ID (GUID): ");
+                string projectId = Console.ReadLine();
 
-                Console.Write("Engagement ID: ");
-                int engagementId = int.Parse(Console.ReadLine());
+                Console.Write("Engagement ID (GUID): ");
+                string engagementId = Console.ReadLine();
 
                 Console.Write("Environment (DEV/UAT/PROD): ");
                 string environment = Console.ReadLine();
 
                 Console.Write("Site URL: ");
                 string siteUrl = Console.ReadLine();
-
-                Console.Write("SharePoint Folder ID (0 if unknown): ");
-                int folderId = int.Parse(Console.ReadLine());
 
                 Console.Write("Internal Permission (Read/Contribute/Edit): ");
                 string internalPerm = Console.ReadLine();
@@ -118,7 +115,6 @@ namespace Tecala.SMO.ShareSync.TestHarness
                     EngagementId = engagementId,
                     Environment = environment,
                     SiteUrl = siteUrl,
-                    SharePointFolderId = folderId,
                     InternalPermission = string.IsNullOrWhiteSpace(internalPerm) ? "Read" : internalPerm,
                     InternalUserEmails = internalEmails,
                     ExternalPermission = externalPerm,
@@ -146,14 +142,14 @@ namespace Tecala.SMO.ShareSync.TestHarness
             try
             {
                 // Get input from user
-                Console.Write("Interaction Name: ");
-                string interactionName = Console.ReadLine();
+                Console.Write("Interaction ID (GUID): ");
+                string interactionId = Console.ReadLine();
 
-                Console.Write("Project ID: ");
-                int projectId = int.Parse(Console.ReadLine());
+                Console.Write("Project ID (GUID): ");
+                string projectId = Console.ReadLine();
 
-                Console.Write("Engagement ID: ");
-                int engagementId = int.Parse(Console.ReadLine());
+                Console.Write("Engagement ID (GUID): ");
+                string engagementId = Console.ReadLine();
 
                 Console.Write("Environment (DEV/UAT/PROD): ");
                 string environment = Console.ReadLine();
@@ -182,7 +178,7 @@ namespace Tecala.SMO.ShareSync.TestHarness
                 // Create service and execute
                 var service = new ShareSyncService(config)
                 {
-                    InteractionName = interactionName,
+                    InteractionId = interactionId,
                     ProjectId = projectId,
                     EngagementId = engagementId,
                     Environment = environment,

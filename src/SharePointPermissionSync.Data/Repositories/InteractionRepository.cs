@@ -83,4 +83,26 @@ public class InteractionRepository : IInteractionRepository
         return await _context.Engagements
             .FirstOrDefaultAsync(e => e.Id == id);
     }
+
+    public async Task UpdateProjectSharePointFolderIdAsync(Guid projectId, int folderId)
+    {
+        var project = await _context.Projects.FindAsync(projectId);
+        if (project != null)
+        {
+            project.SharePointFolderID = folderId;
+            project.ModifiedOn = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task UpdateEngagementSharePointFolderIdAsync(Guid engagementId, int folderId)
+    {
+        var engagement = await _context.Engagements.FindAsync(engagementId);
+        if (engagement != null)
+        {
+            engagement.SharePointFolderID = folderId;
+            engagement.ModifiedOn = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+    }
 }

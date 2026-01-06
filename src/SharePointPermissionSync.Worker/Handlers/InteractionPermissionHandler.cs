@@ -1,4 +1,5 @@
 using SharePointPermissionSync.Core.Models.Messages;
+using SharePointPermissionSync.Core.Utilities;
 using SharePointPermissionSync.Worker.Services;
 
 namespace SharePointPermissionSync.Worker.Handlers;
@@ -24,24 +25,41 @@ public class InteractionPermissionHandler : IOperationHandler<InteractionPermiss
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
-            "Handling permission update for Interaction {InteractionId} (Folder: {FolderId})",
+            "Handling permission update for Interaction '{InteractionName}' (ID: {InteractionId}, Folder: {FolderId})",
+            message.InteractionName,
             message.InteractionId,
-            message.SharePointFolderId);
+            message.InteractionSharePointFolderId);
 
         try
         {
+            // Validate that all SharePoint folder IDs are present
+            if (!SharePointNameHelper.ValidateSharePointFolderIds(
+                message.EngagementSharePointFolderId,
+                message.ProjectSharePointFolderId,
+                message.InteractionSharePointFolderId))
+            {
+                string error = $"Missing SharePoint folder IDs for Interaction '{message.InteractionName}'. " +
+                             $"Engagement: {message.EngagementSharePointFolderId}, " +
+                             $"Project: {message.ProjectSharePointFolderId}, " +
+                             $"Interaction: {message.InteractionSharePointFolderId}";
+                _logger.LogError(error);
+                return OperationResult.FailureResult(error, errorCode: 1002);
+            }
+
             var result = await _sharePointService.ApplyInteractionPermissionsAsync(message);
 
             if (result.Success)
             {
                 _logger.LogInformation(
-                    "Successfully updated permissions for Interaction {InteractionId}",
+                    "Successfully updated permissions for Interaction '{InteractionName}' (ID: {InteractionId})",
+                    message.InteractionName,
                     message.InteractionId);
             }
             else
             {
                 _logger.LogWarning(
-                    "Failed to update permissions for Interaction {InteractionId}: {ErrorMessage}",
+                    "Failed to update permissions for Interaction '{InteractionName}' (ID: {InteractionId}): {ErrorMessage}",
+                    message.InteractionName,
                     message.InteractionId,
                     result.ErrorMessage);
             }
@@ -51,7 +69,8 @@ public class InteractionPermissionHandler : IOperationHandler<InteractionPermiss
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Exception handling permission update for Interaction {InteractionId}",
+                "Exception handling permission update for Interaction '{InteractionName}' (ID: {InteractionId})",
+                message.InteractionName,
                 message.InteractionId);
             return OperationResult.FailureResult(ex.Message);
         }
