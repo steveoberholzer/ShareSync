@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System;
 using System.Data;
 using System.Data.SqlClient;
@@ -32,9 +33,9 @@ namespace Tecala.SMO.ShareSync.Services
 
                 string sql = @"
                     INSERT INTO ScyneShare.ProcessingJobs
-                        (JobId, JobType, UploadedBy, Environment, SiteUrl, Priority, Status, CreatedAt, UpdatedAt)
+                        (JobId, JobType, UploadedBy, Environment, SiteUrl, Priority, Status, CreatedAt)
                     VALUES
-                        (@JobId, @JobType, @UploadedBy, @Environment, @SiteUrl, @Priority, @Status, @CreatedAt, @UpdatedAt)";
+                        (@JobId, @JobType, @UploadedBy, @Environment, @SiteUrl, @Priority, @Status, @CreatedAt)";
 
                 using (var cmd = new SqlCommand(sql, _connection))
                 {
@@ -46,7 +47,6 @@ namespace Tecala.SMO.ShareSync.Services
                     cmd.Parameters.AddWithValue("@Priority", priority ?? "Medium");
                     cmd.Parameters.AddWithValue("@Status", "Queued");
                     cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
-                    cmd.Parameters.AddWithValue("@UpdatedAt", DateTime.UtcNow);
 
                     cmd.ExecuteNonQuery();
                 }
@@ -64,17 +64,24 @@ namespace Tecala.SMO.ShareSync.Services
         /// <summary>
         /// Create a job item for tracking individual messages
         /// </summary>
-        public void CreateJobItem(Guid jobId, Guid messageId, string itemType, string itemIdentifier)
+        public void CreateJobItem(Guid jobId, Guid messageId, string itemType, string itemIdentifier, object payload = null)
         {
             try
             {
                 EnsureConnection();
 
+                // Serialize payload to JSON if provided
+                string payloadJson = null;
+                if (payload != null)
+                {
+                    payloadJson = JsonConvert.SerializeObject(payload, Formatting.Indented);
+                }
+
                 string sql = @"
                     INSERT INTO ScyneShare.ProcessingJobItems
-                        (JobId, MessageId, ItemType, ItemIdentifier, Status, CreatedAt)
+                        (JobId, MessageId, ItemType, ItemIdentifier, Payload, Status, CreatedAt)
                     VALUES
-                        (@JobId, @MessageId, @ItemType, @ItemIdentifier, @Status, @CreatedAt)";
+                        (@JobId, @MessageId, @ItemType, @ItemIdentifier, @Payload, @Status, @CreatedAt)";
 
                 using (var cmd = new SqlCommand(sql, _connection))
                 {
@@ -82,6 +89,7 @@ namespace Tecala.SMO.ShareSync.Services
                     cmd.Parameters.AddWithValue("@MessageId", messageId);
                     cmd.Parameters.AddWithValue("@ItemType", itemType);
                     cmd.Parameters.AddWithValue("@ItemIdentifier", itemIdentifier ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@Payload", (object)payloadJson ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Status", "Pending");
                     cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
 

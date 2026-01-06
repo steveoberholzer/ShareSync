@@ -112,8 +112,8 @@ namespace Tecala.SMO.ShareSync.Services
                             QueuedAt = DateTime.UtcNow
                         };
 
-                        // Create job item
-                        dbService.CreateJobItem(jobId, messageId, "InteractionPermissionSync", $"Interaction-{InteractionId}");
+                        // Create job item with payload
+                        dbService.CreateJobItem(jobId, messageId, "InteractionPermissionSync", $"Interaction-{InteractionId}", message);
 
                         // Publish to queue
                         string queueName = _serviceConfig["Queue InteractionPermissions"].ToString();
@@ -217,8 +217,8 @@ namespace Tecala.SMO.ShareSync.Services
                             QueuedAt = DateTime.UtcNow
                         };
 
-                        // Create job item
-                        dbService.CreateJobItem(jobId, messageId, "InteractionCreation", InteractionName);
+                        // Create job item with payload
+                        dbService.CreateJobItem(jobId, messageId, "InteractionCreation", InteractionName, message);
 
                         // Publish to queue
                         string queueName = _serviceConfig["Queue InteractionCreation"].ToString();
