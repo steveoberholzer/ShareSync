@@ -105,4 +105,17 @@ public class InteractionRepository : IInteractionRepository
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task<(Interaction Interaction, Project Project, Engagement Engagement)?> GetInteractionHierarchyAsync(Guid interactionId)
+    {
+        var interaction = await _context.Interactions
+            .Include(i => i.Project)
+            .ThenInclude(p => p.Engagement)
+            .FirstOrDefaultAsync(i => i.Id == interactionId);
+
+        if (interaction?.Project?.Engagement == null)
+            return null;
+
+        return (interaction, interaction.Project, interaction.Project.Engagement);
+    }
 }

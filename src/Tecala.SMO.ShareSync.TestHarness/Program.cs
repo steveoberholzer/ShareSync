@@ -73,6 +73,8 @@ namespace Tecala.SMO.ShareSync.TestHarness
         static void TestSyncInteractionPermissions(ServiceConfiguration config)
         {
             Console.WriteLine("\n--- Sync Interaction Permissions ---");
+            Console.WriteLine("NOTE: ProjectId, EngagementId, and SiteUrl are now queried from database using InteractionId");
+            Console.WriteLine();
 
             try
             {
@@ -80,17 +82,8 @@ namespace Tecala.SMO.ShareSync.TestHarness
                 Console.Write("Interaction ID (GUID): ");
                 string interactionId = Console.ReadLine();
 
-                Console.Write("Project ID (GUID): ");
-                string projectId = Console.ReadLine();
-
-                Console.Write("Engagement ID (GUID): ");
-                string engagementId = Console.ReadLine();
-
                 Console.Write("Environment (DEV/UAT/PROD): ");
                 string environment = Console.ReadLine();
-
-                Console.Write("Site URL: ");
-                string siteUrl = Console.ReadLine();
 
                 Console.Write("Internal Permission (Read/Contribute/Edit): ");
                 string internalPerm = Console.ReadLine();
@@ -111,10 +104,7 @@ namespace Tecala.SMO.ShareSync.TestHarness
                 var service = new ShareSyncService(config)
                 {
                     InteractionId = interactionId,
-                    ProjectId = projectId,
-                    EngagementId = engagementId,
                     Environment = environment,
-                    SiteUrl = siteUrl,
                     InternalPermission = string.IsNullOrWhiteSpace(internalPerm) ? "Read" : internalPerm,
                     InternalUserEmails = internalEmails,
                     ExternalPermission = externalPerm,
@@ -138,6 +128,8 @@ namespace Tecala.SMO.ShareSync.TestHarness
         static void TestCreateInteraction(ServiceConfiguration config)
         {
             Console.WriteLine("\n--- Create Interaction ---");
+            Console.WriteLine("NOTE: ProjectId, EngagementId, and SiteUrl are now queried from database using InteractionId");
+            Console.WriteLine();
 
             try
             {
@@ -145,17 +137,8 @@ namespace Tecala.SMO.ShareSync.TestHarness
                 Console.Write("Interaction ID (GUID): ");
                 string interactionId = Console.ReadLine();
 
-                Console.Write("Project ID (GUID): ");
-                string projectId = Console.ReadLine();
-
-                Console.Write("Engagement ID (GUID): ");
-                string engagementId = Console.ReadLine();
-
                 Console.Write("Environment (DEV/UAT/PROD): ");
                 string environment = Console.ReadLine();
-
-                Console.Write("Site URL: ");
-                string siteUrl = Console.ReadLine();
 
                 Console.Write("Project Subfolder (optional): ");
                 string subfolder = Console.ReadLine();
@@ -179,10 +162,7 @@ namespace Tecala.SMO.ShareSync.TestHarness
                 var service = new ShareSyncService(config)
                 {
                     InteractionId = interactionId,
-                    ProjectId = projectId,
-                    EngagementId = engagementId,
                     Environment = environment,
-                    SiteUrl = siteUrl,
                     ProjectSubfolder = subfolder,
                     InternalPermission = string.IsNullOrWhiteSpace(internalPerm) ? "Read" : internalPerm,
                     InternalUserEmails = internalEmails,

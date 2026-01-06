@@ -53,8 +53,8 @@ namespace Tecala.SMO.ShareSync.Services
             MethodType.Execute,
             "Sync Interaction Permissions",
             "Queue a permission sync operation for a SharePoint interaction folder.",
-            new[] { "InteractionId", "ProjectId", "EngagementId", "Environment", "SiteUrl" },
-            new[] { "InteractionId", "ProjectId", "EngagementId", "SharePointFolderId", "Environment", "SiteUrl", "InternalPermission", "InternalUserEmails", "ExternalPermission", "ExternalUserEmails", "Priority" },
+            new[] { "InteractionId", "Environment" },
+            new[] { "InteractionId", "Environment", "InternalPermission", "InternalUserEmails", "ExternalPermission", "ExternalUserEmails", "Priority" },
             new[] { "ErrorNumber", "ErrorMessage", "JobId", "MessageId" })]
         public ShareSyncService SyncInteractionPermissions()
         {
@@ -62,30 +62,22 @@ namespace Tecala.SMO.ShareSync.Services
             {
                 _logger.LogInformation($"Starting SyncInteractionPermissions for Interaction {InteractionId}");
 
-                // Validate and parse GUIDs
+                // Validate and parse InteractionId
                 if (string.IsNullOrWhiteSpace(InteractionId) || !Guid.TryParse(InteractionId, out Guid interactionGuid))
                     throw new ArgumentException("InteractionId is required and must be a valid GUID");
 
-                if (string.IsNullOrWhiteSpace(ProjectId) || !Guid.TryParse(ProjectId, out Guid projectGuid))
-                    throw new ArgumentException("ProjectId is required and must be a valid GUID");
-
-                if (string.IsNullOrWhiteSpace(EngagementId) || !Guid.TryParse(EngagementId, out Guid engagementGuid))
-                    throw new ArgumentException("EngagementId is required and must be a valid GUID");
-
                 if (string.IsNullOrWhiteSpace(Environment))
                     throw new ArgumentException("Environment is required (DEV, UAT, or PROD)");
-
-                if (string.IsNullOrWhiteSpace(SiteUrl))
-                    throw new ArgumentException("SiteUrl is required");
 
                 // Create services
                 var connectionString = _serviceConfig["SQL Connection String"].ToString();
                 using (var dbService = new DatabaseService(connectionString, _logger))
                 {
-                    // Query database for entity details
-                    var (interactionName, interactionNumber, interactionSharePointFolderId) = dbService.GetInteractionDetails(interactionGuid);
-                    var (projectName, projectSharePointFolderId) = dbService.GetProjectDetails(projectGuid);
-                    var (engagementName, engagementSharePointFolderId) = dbService.GetEngagementDetails(engagementGuid);
+                    // Query database for full hierarchy (includes ProjectId, EngagementId, SiteUrl)
+                    var (interactionId, interactionName, interactionNumber, interactionSharePointFolderId,
+                         projectId, projectName, projectSharePointFolderId,
+                         engagementId, engagementName, engagementSharePointFolderId, siteUrl) =
+                        dbService.GetInteractionHierarchy(interactionGuid);
 
                     // Validate that all SharePoint folder IDs exist
                     if (!interactionSharePointFolderId.HasValue || interactionSharePointFolderId.Value <= 0)
@@ -110,7 +102,7 @@ namespace Tecala.SMO.ShareSync.Services
                             "InteractionPermissionSync",
                             "K2 Broker",
                             Environment,
-                            SiteUrl,
+                            siteUrl ?? string.Empty,
                             Priority ?? "Medium");
 
                         // Create message with full hierarchy
@@ -122,9 +114,9 @@ namespace Tecala.SMO.ShareSync.Services
                             OperationType = "InteractionPermissionSync",
 
                             // GUID identifiers
-                            InteractionId = interactionGuid,
-                            ProjectId = projectGuid,
-                            EngagementId = engagementGuid,
+                            InteractionId = interactionId,
+                            ProjectId = projectId,
+                            EngagementId = engagementId,
 
                             // SharePoint folder IDs (non-nullable)
                             InteractionSharePointFolderId = interactionSharePointFolderId.Value,
@@ -137,7 +129,7 @@ namespace Tecala.SMO.ShareSync.Services
                             EngagementName = CleanFolderName(engagementName),
 
                             // SharePoint configuration
-                            SiteUrl = SiteUrl,
+                            SiteUrl = siteUrl ?? string.Empty,
                             DocumentLibrary = "Documents",
 
                             // Permissions
@@ -191,8 +183,8 @@ namespace Tecala.SMO.ShareSync.Services
             MethodType.Create,
             "Create Interaction",
             "Create a new interaction folder in SharePoint with permissions.",
-            new[] { "InteractionId", "ProjectId", "EngagementId", "Environment", "SiteUrl" },
-            new[] { "InteractionId", "ProjectId", "EngagementId", "Environment", "SiteUrl", "ProjectSubfolder", "InternalPermission", "InternalUserEmails", "ExternalPermission", "ExternalUserEmails", "Priority" },
+            new[] { "InteractionId", "Environment" },
+            new[] { "InteractionId", "Environment", "ProjectSubfolder", "InternalPermission", "InternalUserEmails", "ExternalPermission", "ExternalUserEmails", "Priority" },
             new[] { "ErrorNumber", "ErrorMessage", "JobId", "MessageId" })]
         public ShareSyncService CreateInteraction()
         {
@@ -200,30 +192,22 @@ namespace Tecala.SMO.ShareSync.Services
             {
                 _logger.LogInformation($"Starting CreateInteraction for Interaction {InteractionId}");
 
-                // Validate and parse GUIDs
+                // Validate and parse InteractionId
                 if (string.IsNullOrWhiteSpace(InteractionId) || !Guid.TryParse(InteractionId, out Guid interactionGuid))
                     throw new ArgumentException("InteractionId is required and must be a valid GUID");
 
-                if (string.IsNullOrWhiteSpace(ProjectId) || !Guid.TryParse(ProjectId, out Guid projectGuid))
-                    throw new ArgumentException("ProjectId is required and must be a valid GUID");
-
-                if (string.IsNullOrWhiteSpace(EngagementId) || !Guid.TryParse(EngagementId, out Guid engagementGuid))
-                    throw new ArgumentException("EngagementId is required and must be a valid GUID");
-
                 if (string.IsNullOrWhiteSpace(Environment))
                     throw new ArgumentException("Environment is required (DEV, UAT, or PROD)");
-
-                if (string.IsNullOrWhiteSpace(SiteUrl))
-                    throw new ArgumentException("SiteUrl is required");
 
                 // Create services
                 var connectionString = _serviceConfig["SQL Connection String"].ToString();
                 using (var dbService = new DatabaseService(connectionString, _logger))
                 {
-                    // Query database for entity details
-                    var (interactionName, interactionNumber, interactionSharePointFolderId) = dbService.GetInteractionDetails(interactionGuid);
-                    var (projectName, projectSharePointFolderId) = dbService.GetProjectDetails(projectGuid);
-                    var (engagementName, engagementSharePointFolderId) = dbService.GetEngagementDetails(engagementGuid);
+                    // Query database for full hierarchy (includes ProjectId, EngagementId, SiteUrl)
+                    var (interactionId, interactionName, interactionNumber, interactionSharePointFolderId,
+                         projectId, projectName, projectSharePointFolderId,
+                         engagementId, engagementName, engagementSharePointFolderId, siteUrl) =
+                        dbService.GetInteractionHierarchy(interactionGuid);
 
                     var rabbitHost = _serviceConfig["RabbitMQ Host"].ToString();
                     var rabbitPort = int.Parse(_serviceConfig["RabbitMQ Port"].ToString());
@@ -238,7 +222,7 @@ namespace Tecala.SMO.ShareSync.Services
                             "InteractionCreation",
                             "K2 Broker",
                             Environment,
-                            SiteUrl,
+                            siteUrl ?? string.Empty,
                             Priority ?? "Medium");
 
                         // Create message with full hierarchy
@@ -250,9 +234,9 @@ namespace Tecala.SMO.ShareSync.Services
                             OperationType = "InteractionCreation",
 
                             // GUID identifiers
-                            InteractionId = interactionGuid,
-                            ProjectId = projectGuid,
-                            EngagementId = engagementGuid,
+                            InteractionId = interactionId,
+                            ProjectId = projectId,
+                            EngagementId = engagementId,
 
                             // SharePoint folder IDs (nullable - may need creation)
                             EngagementSharePointFolderId = engagementSharePointFolderId,
@@ -265,7 +249,7 @@ namespace Tecala.SMO.ShareSync.Services
                             EngagementName = CleanFolderName(engagementName),
 
                             // SharePoint configuration
-                            SiteUrl = SiteUrl,
+                            SiteUrl = siteUrl ?? string.Empty,
                             DocumentLibrary = "Documents",
                             ProjectSubfolder = ProjectSubfolder ?? string.Empty,
                             CreatedBy = "K2 Broker",

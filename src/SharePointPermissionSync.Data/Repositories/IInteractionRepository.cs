@@ -56,4 +56,9 @@ public interface IInteractionRepository
     /// Update engagement's SharePoint folder ID
     /// </summary>
     Task UpdateEngagementSharePointFolderIdAsync(Guid engagementId, int folderId);
+
+    /// <summary>
+    /// Get full interaction hierarchy (Interaction, Project, Engagement) in one query
+    /// </summary>
+    Task<(Interaction Interaction, Project Project, Engagement Engagement)?> GetInteractionHierarchyAsync(Guid interactionId);
 }

@@ -206,16 +206,80 @@ namespace Tecala.SMO.ShareSync.Services
         }
 
         /// <summary>
-        /// Get engagement details by ID
+        /// Get full interaction hierarchy (Interaction, Project, Engagement) from just the InteractionId
         /// </summary>
-        public (string Name, int? SharePointFolderID) GetEngagementDetails(Guid engagementId)
+        public (
+            Guid InteractionId, string InteractionName, int? InteractionNumber, int? InteractionSharePointFolderId,
+            Guid ProjectId, string ProjectName, int? ProjectSharePointFolderId,
+            Guid EngagementId, string EngagementName, int? EngagementSharePointFolderId, string SiteUrl
+        ) GetInteractionHierarchy(Guid interactionId)
         {
             try
             {
                 EnsureConnection();
 
                 string sql = @"
-                    SELECT Name, SharePointFolderID
+                    SELECT
+                        i.Id AS InteractionId,
+                        i.Name AS InteractionName,
+                        i.InteractionNumber,
+                        i.SharePointFolderID AS InteractionSharePointFolderId,
+                        i.ProjectId,
+                        p.Name AS ProjectName,
+                        p.SharePointFolderID AS ProjectSharePointFolderId,
+                        i.EngagementId,
+                        e.Name AS EngagementName,
+                        e.SharePointFolderID AS EngagementSharePointFolderId,
+                        e.SiteUrl
+                    FROM ScyneShare.Interaction i
+                    INNER JOIN ScyneShare.Project p ON i.ProjectId = p.Id
+                    INNER JOIN ScyneShare.Engagement e ON i.EngagementId = e.Id
+                    WHERE i.Id = @Id";
+
+                using (var cmd = new SqlCommand(sql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@Id", interactionId);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return (
+                                (Guid)reader["InteractionId"],
+                                reader["InteractionName"]?.ToString(),
+                                reader["InteractionNumber"] as int?,
+                                reader["InteractionSharePointFolderId"] as int?,
+                                (Guid)reader["ProjectId"],
+                                reader["ProjectName"]?.ToString(),
+                                reader["ProjectSharePointFolderId"] as int?,
+                                (Guid)reader["EngagementId"],
+                                reader["EngagementName"]?.ToString(),
+                                reader["EngagementSharePointFolderId"] as int?,
+                                reader["SiteUrl"]?.ToString()
+                            );
+                        }
+                    }
+                }
+
+                throw new Exception($"Interaction {interactionId} or its hierarchy not found");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to get interaction hierarchy for {interactionId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Get engagement details by ID
+        /// </summary>
+        public (string Name, int? SharePointFolderID, string SiteUrl) GetEngagementDetails(Guid engagementId)
+        {
+            try
+            {
+                EnsureConnection();
+
+                string sql = @"
+                    SELECT Name, SharePointFolderID, SiteUrl
                     FROM ScyneShare.Engagement
                     WHERE Id = @Id";
 
@@ -228,7 +292,8 @@ namespace Tecala.SMO.ShareSync.Services
                         {
                             return (
                                 reader["Name"]?.ToString(),
-                                reader["SharePointFolderID"] as int?
+                                reader["SharePointFolderID"] as int?,
+                                reader["SiteUrl"]?.ToString()
                             );
                         }
                     }

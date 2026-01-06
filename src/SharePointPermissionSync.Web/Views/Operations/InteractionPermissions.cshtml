@@ -84,13 +84,10 @@
                     <p class="mb-2"><strong>Required Columns:</strong></p>
                     <ul class="small mb-3">
                         <li><code>InteractionId</code> - Interaction ID (GUID)</li>
-                        <li><code>ProjectId</code> - Project ID (GUID)</li>
-                        <li><code>EngagementId</code> - Engagement ID (GUID)</li>
                     </ul>
 
                     <p class="mb-2"><strong>Optional Columns:</strong></p>
                     <ul class="small mb-3">
-                        <li><code>SiteUrl</code> - Site URL (overrides default)</li>
                         <li><code>InternalPermission</code> - Permission level (default: Read)</li>
                         <li><code>InternalUserEmails</code> - Semicolon-separated emails</li>
                         <li><code>ExternalPermission</code> - External permission level</li>
@@ -98,8 +95,8 @@
                     </ul>
 
                     <p class="mb-2"><strong>Example:</strong></p>
-                    <pre class="bg-light p-2 small"><code>InteractionId,ProjectId,EngagementId,InternalPermission,InternalUserEmails
-a1b2c3d4-e5f6-7890-abcd-ef1234567890,b2c3d4e5-f6a7-8901-bcde-f12345678901,c3d4e5f6-a7b8-9012-cdef-123456789012,Edit,user1@domain.com;user2@domain.com</code></pre>
+                    <pre class="bg-light p-2 small"><code>InteractionId,InternalPermission,InternalUserEmails
+a1b2c3d4-e5f6-7890-abcd-ef1234567890,Edit,user1@domain.com;user2@domain.com</code></pre>
                 </div>
             </div>
 
@@ -110,8 +107,8 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890,b2c3d4e5-f6a7-8901-bcde-f12345678901,c3d4e5
                 <div class="card-body">
                     <ul class="small mb-0">
                         <li>CSV file must have headers</li>
-                        <li>All IDs must be valid GUIDs from the database</li>
-                        <li>SharePoint Folder IDs are automatically queried from the database</li>
+                        <li>Only InteractionId (GUID) is required - all other data is queried from database</li>
+                        <li>ProjectId, EngagementId, SiteUrl, and SharePoint Folder IDs are automatically retrieved</li>
                         <li>Multiple email addresses must be separated by semicolons</li>
                         <li>Valid permission levels: Read, Edit, Contribute, Full Control</li>
                         <li>Processing is asynchronous - you'll be redirected to the job details page</li>

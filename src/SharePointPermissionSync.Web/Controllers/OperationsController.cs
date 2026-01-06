@@ -69,29 +69,17 @@ public class OperationsController : Controller
 
             foreach (var row in records)
             {
-                // Query database to get entity details and SharePointFolderIDs
-                var interaction = await interactionRepo.GetByIdAsync(row.InteractionId);
-                if (interaction == null)
+                // Query database to get full hierarchy in one query
+                var hierarchy = await interactionRepo.GetInteractionHierarchyAsync(row.InteractionId);
+                if (hierarchy == null)
                 {
-                    _logger.LogWarning("Interaction {InteractionId} not found, skipping", row.InteractionId);
+                    _logger.LogWarning("Interaction {InteractionId} or its hierarchy not found, skipping", row.InteractionId);
                     continue;
                 }
 
-                var project = await interactionRepo.GetProjectByIdAsync(row.ProjectId);
-                if (project == null)
-                {
-                    _logger.LogWarning("Project {ProjectId} not found, skipping", row.ProjectId);
-                    continue;
-                }
+                var (interaction, project, engagement) = hierarchy.Value;
 
-                var engagement = await interactionRepo.GetEngagementByIdAsync(row.EngagementId);
-                if (engagement == null)
-                {
-                    _logger.LogWarning("Engagement {EngagementId} not found, skipping", row.EngagementId);
-                    continue;
-                }
-
-                // Validate that all SharePoint folder IDs exist
+                // Validate that all SharePoint folder IDs exist for permission sync
                 if (!interaction.SharePointFolderID.HasValue || interaction.SharePointFolderID.Value <= 0)
                 {
                     _logger.LogWarning(
@@ -104,7 +92,7 @@ public class OperationsController : Controller
                 {
                     _logger.LogWarning(
                         "Project {ProjectId} has no SharePoint folder ID, skipping",
-                        row.ProjectId);
+                        project.Id);
                     continue;
                 }
 
@@ -112,7 +100,7 @@ public class OperationsController : Controller
                 {
                     _logger.LogWarning(
                         "Engagement {EngagementId} has no SharePoint folder ID, skipping",
-                        row.EngagementId);
+                        engagement.Id);
                     continue;
                 }
 
@@ -123,9 +111,9 @@ public class OperationsController : Controller
                     OperationType = "InteractionPermissionSync",
 
                     // GUID identifiers
-                    InteractionId = row.InteractionId,
-                    ProjectId = row.ProjectId,
-                    EngagementId = row.EngagementId,
+                    InteractionId = interaction.Id,
+                    ProjectId = project.Id,
+                    EngagementId = engagement.Id,
 
                     // SharePoint folder IDs (non-nullable - validated above)
                     InteractionSharePointFolderId = interaction.SharePointFolderID.Value,
@@ -139,8 +127,8 @@ public class OperationsController : Controller
                     ProjectName = SharePointNameHelper.CleanFolderName(project.Name),
                     EngagementName = SharePointNameHelper.CleanFolderName(engagement.Name),
 
-                    // SharePoint configuration
-                    SiteUrl = string.IsNullOrWhiteSpace(row.SiteUrl) ? siteUrl : row.SiteUrl,
+                    // SharePoint configuration (SiteURL from Engagement table)
+                    SiteUrl = engagement.SiteURL ?? siteUrl,
                     DocumentLibrary = "Documents",
 
                     // Permissions
@@ -232,27 +220,15 @@ public class OperationsController : Controller
 
             foreach (var row in records)
             {
-                // Query database to get entity details
-                var interaction = await interactionRepo.GetByIdAsync(row.InteractionId);
-                if (interaction == null)
+                // Query database to get full hierarchy in one query
+                var hierarchy = await interactionRepo.GetInteractionHierarchyAsync(row.InteractionId);
+                if (hierarchy == null)
                 {
-                    _logger.LogWarning("Interaction {InteractionId} not found, skipping", row.InteractionId);
+                    _logger.LogWarning("Interaction {InteractionId} or its hierarchy not found, skipping", row.InteractionId);
                     continue;
                 }
 
-                var project = await interactionRepo.GetProjectByIdAsync(row.ProjectId);
-                if (project == null)
-                {
-                    _logger.LogWarning("Project {ProjectId} not found, skipping", row.ProjectId);
-                    continue;
-                }
-
-                var engagement = await interactionRepo.GetEngagementByIdAsync(row.EngagementId);
-                if (engagement == null)
-                {
-                    _logger.LogWarning("Engagement {EngagementId} not found, skipping", row.EngagementId);
-                    continue;
-                }
+                var (interaction, project, engagement) = hierarchy.Value;
 
                 // Create message with full hierarchy
                 var message = new InteractionCreationMessage
@@ -261,12 +237,11 @@ public class OperationsController : Controller
                     OperationType = "InteractionCreation",
 
                     // GUID identifiers
-                    InteractionId = row.InteractionId,
-                    ProjectId = row.ProjectId,
-                    EngagementId = row.EngagementId,
+                    InteractionId = interaction.Id,
+                    ProjectId = project.Id,
+                    EngagementId = engagement.Id,
 
                     // SharePoint folder IDs (nullable - may need creation)
-                    // Engagement folder should already exist (per requirements)
                     EngagementSharePointFolderId = engagement.SharePointFolderID,
                     ProjectSharePointFolderId = project.SharePointFolderID,
                     InteractionSharePointFolderId = interaction.SharePointFolderID, // Should be null for creation
@@ -278,8 +253,8 @@ public class OperationsController : Controller
                     ProjectName = SharePointNameHelper.CleanFolderName(project.Name),
                     EngagementName = SharePointNameHelper.CleanFolderName(engagement.Name),
 
-                    // SharePoint configuration
-                    SiteUrl = string.IsNullOrWhiteSpace(row.SiteUrl) ? siteUrl : row.SiteUrl,
+                    // SharePoint configuration (SiteURL from Engagement table)
+                    SiteUrl = engagement.SiteURL ?? siteUrl,
                     DocumentLibrary = "Documents",
                     ProjectSubfolder = row.ProjectSubfolder ?? string.Empty,
                     CreatedBy = User.Identity?.Name ?? "Anonymous",
@@ -336,14 +311,11 @@ public class OperationsController : Controller
     }
 }
 
-// CSV row models
+// CSV row models - Simplified to only require InteractionId
 public class InteractionPermissionCsvRow
 {
     public Guid InteractionId { get; set; }
-    public Guid ProjectId { get; set; }
-    public Guid EngagementId { get; set; }
-    public string? SiteUrl { get; set; }
-    // SharePointFolderId removed - queried from database
+    // All other fields (ProjectId, EngagementId, SiteUrl, SharePointFolderIds) queried from database
     public string? InternalPermission { get; set; }
     public string? InternalUserEmails { get; set; }
     public string? ExternalPermission { get; set; }
@@ -352,10 +324,8 @@ public class InteractionPermissionCsvRow
 
 public class InteractionCreationCsvRow
 {
-    public Guid InteractionId { get; set; } // Added - needed for database update after creation
-    public Guid ProjectId { get; set; }
-    public Guid EngagementId { get; set; }
-    public string? SiteUrl { get; set; }
+    public Guid InteractionId { get; set; }
+    // All other fields (ProjectId, EngagementId, SiteUrl, SharePointFolderIds) queried from database
     public string? ProjectSubfolder { get; set; }
     public string? InternalPermission { get; set; }
     public string? InternalUserEmails { get; set; }
