@@ -47,25 +47,20 @@ public static class SharePointNameHelper
     }
 
     /// <summary>
-    /// Format interaction name with padded number and cleaned name
-    /// Example: InteractionNumber=83, Name="Trading Operations Sample"
-    ///          => "00083 - Trading Operations Sample"
+    /// Format interaction name using SharePoint standardized naming convention
+    /// Example: InteractionNumber=1 => "Interaction1-R"
+    ///          InteractionNumber=16 => "Interaction16-R"
     /// </summary>
     /// <param name="interactionNumber">The interaction number</param>
-    /// <param name="name">The interaction name</param>
-    /// <param name="paddingWidth">Number of digits to pad (default 5)</param>
-    /// <returns>Formatted interaction name</returns>
+    /// <param name="name">The interaction name (not used, kept for compatibility)</param>
+    /// <param name="paddingWidth">Not used, kept for compatibility</param>
+    /// <returns>Formatted interaction folder name</returns>
     public static string FormatInteractionName(int? interactionNumber, string? name, int paddingWidth = 5)
     {
-        string cleanedName = CleanFolderName(name);
-
         if (!interactionNumber.HasValue || interactionNumber.Value <= 0)
-            return cleanedName;
+            return CleanFolderName(name);
 
-        string paddedNumber = interactionNumber.Value.ToString().PadLeft(paddingWidth, '0');
-        return string.IsNullOrWhiteSpace(cleanedName)
-            ? paddedNumber
-            : $"{paddedNumber} - {cleanedName}";
+        return $"Interaction{interactionNumber.Value}-R";
     }
 
     /// <summary>
