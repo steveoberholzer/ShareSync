@@ -164,4 +164,40 @@ public class JobsController : Controller
 
         return RedirectToAction(nameof(Details), new { id });
     }
+
+    /// <summary>
+    /// Search job items across all jobs
+    /// </summary>
+    public async Task<IActionResult> Search(
+        string? searchText,
+        DateTime? fromDate,
+        DateTime? toDate,
+        string? status,
+        string? itemType,
+        int page = 1,
+        int pageSize = 50)
+    {
+        // Default to last 7 days if no date range specified
+        if (!fromDate.HasValue && !toDate.HasValue)
+        {
+            fromDate = DateTime.UtcNow.AddDays(-7);
+            toDate = DateTime.UtcNow;
+        }
+
+        var skip = (page - 1) * pageSize;
+        var items = await _jobService.SearchJobItemsAsync(searchText, fromDate, toDate, status, itemType, skip, pageSize);
+        var totalCount = await _jobService.SearchJobItemsCountAsync(searchText, fromDate, toDate, status, itemType);
+
+        ViewBag.SearchText = searchText;
+        ViewBag.FromDate = fromDate;
+        ViewBag.ToDate = toDate;
+        ViewBag.Status = status;
+        ViewBag.ItemType = itemType;
+        ViewBag.CurrentPage = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        return View(items);
+    }
 }

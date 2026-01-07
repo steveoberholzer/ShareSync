@@ -114,4 +114,26 @@ public interface IJobRepository
     /// Update a job item's payload
     /// </summary>
     Task UpdateJobItemPayloadAsync(Guid messageId, string payload);
+
+    /// <summary>
+    /// Search job items with date range and text search across all fields
+    /// </summary>
+    Task<List<ProcessingJobItem>> SearchJobItemsAsync(
+        string? searchText = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        string? status = null,
+        string? itemType = null,
+        int skip = 0,
+        int take = 100);
+
+    /// <summary>
+    /// Get count of search results
+    /// </summary>
+    Task<int> SearchJobItemsCountAsync(
+        string? searchText = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        string? status = null,
+        string? itemType = null);
 }

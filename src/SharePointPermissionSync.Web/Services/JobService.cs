@@ -161,9 +161,9 @@ public class JobService
     {
         return message switch
         {
-            InteractionPermissionMessage perm => $"Interaction:{perm.InteractionId}",
-            InteractionCreationMessage create => $"New:{create.InteractionName}",
-            RemoveUniquePermissionMessage remove => $"Folder:{remove.FolderId}",
+            InteractionPermissionMessage perm => $"{perm.EngagementName} | {perm.ProjectName} | {perm.InteractionName}",
+            InteractionCreationMessage create => $"{create.EngagementName} | {create.ProjectName} | {create.InteractionName}",
+            RemoveUniquePermissionMessage remove => $"{remove.FolderType} Folder ID: {remove.FolderId}",
             _ => "Unknown"
         };
     }
@@ -389,5 +389,33 @@ public class JobService
     public async Task UpdateJobItemPayloadAsync(Guid messageId, string payload)
     {
         await _jobRepository.UpdateJobItemPayloadAsync(messageId, payload);
+    }
+
+    /// <summary>
+    /// Search job items with text and date range filters
+    /// </summary>
+    public async Task<List<ProcessingJobItem>> SearchJobItemsAsync(
+        string? searchText,
+        DateTime? fromDate,
+        DateTime? toDate,
+        string? status,
+        string? itemType,
+        int skip,
+        int take)
+    {
+        return await _jobRepository.SearchJobItemsAsync(searchText, fromDate, toDate, status, itemType, skip, take);
+    }
+
+    /// <summary>
+    /// Get count of search results
+    /// </summary>
+    public async Task<int> SearchJobItemsCountAsync(
+        string? searchText,
+        DateTime? fromDate,
+        DateTime? toDate,
+        string? status,
+        string? itemType)
+    {
+        return await _jobRepository.SearchJobItemsCountAsync(searchText, fromDate, toDate, status, itemType);
     }
 }

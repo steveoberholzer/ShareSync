@@ -285,4 +285,102 @@ public class JobRepository : IJobRepository
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task<List<ProcessingJobItem>> SearchJobItemsAsync(
+        string? searchText = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        string? status = null,
+        string? itemType = null,
+        int skip = 0,
+        int take = 100)
+    {
+        var query = _context.ProcessingJobItems.AsQueryable();
+
+        // Date range filter
+        if (fromDate.HasValue)
+        {
+            query = query.Where(i => i.CreatedAt >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            query = query.Where(i => i.CreatedAt <= toDate.Value);
+        }
+
+        // Status filter
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(i => i.Status == status);
+        }
+
+        // Item type filter
+        if (!string.IsNullOrEmpty(itemType))
+        {
+            query = query.Where(i => i.ItemType == itemType);
+        }
+
+        // Text search across ItemIdentifier, ErrorMessage, and GUIDs
+        if (!string.IsNullOrEmpty(searchText))
+        {
+            var searchLower = searchText.ToLower();
+            query = query.Where(i =>
+                (i.ItemIdentifier != null && i.ItemIdentifier.ToLower().Contains(searchLower)) ||
+                (i.ErrorMessage != null && i.ErrorMessage.ToLower().Contains(searchLower)) ||
+                i.MessageId.ToString().ToLower().Contains(searchLower) ||
+                i.JobId.ToString().ToLower().Contains(searchLower));
+        }
+
+        return await query
+            .OrderByDescending(i => i.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync();
+    }
+
+    public async Task<int> SearchJobItemsCountAsync(
+        string? searchText = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        string? status = null,
+        string? itemType = null)
+    {
+        var query = _context.ProcessingJobItems.AsQueryable();
+
+        // Date range filter
+        if (fromDate.HasValue)
+        {
+            query = query.Where(i => i.CreatedAt >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            query = query.Where(i => i.CreatedAt <= toDate.Value);
+        }
+
+        // Status filter
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(i => i.Status == status);
+        }
+
+        // Item type filter
+        if (!string.IsNullOrEmpty(itemType))
+        {
+            query = query.Where(i => i.ItemType == itemType);
+        }
+
+        // Text search
+        if (!string.IsNullOrEmpty(searchText))
+        {
+            var searchLower = searchText.ToLower();
+            query = query.Where(i =>
+                (i.ItemIdentifier != null && i.ItemIdentifier.ToLower().Contains(searchLower)) ||
+                (i.ErrorMessage != null && i.ErrorMessage.ToLower().Contains(searchLower)) ||
+                i.MessageId.ToString().ToLower().Contains(searchLower) ||
+                i.JobId.ToString().ToLower().Contains(searchLower));
+        }
+
+        return await query.CountAsync();
+    }
 }

@@ -142,7 +142,8 @@ namespace Tecala.SMO.ShareSync.Services
                         };
 
                         // Create job item with payload
-                        dbService.CreateJobItem(jobId, messageId, "InteractionPermissionSync", FormatInteractionName(interactionNumber, interactionName), message);
+                        string itemIdentifier = $"{CleanFolderName(engagementName)} | {CleanFolderName(projectName)} | {FormatInteractionName(interactionNumber, interactionName)}";
+                        dbService.CreateJobItem(jobId, messageId, "InteractionPermissionSync", itemIdentifier, message);
 
                         // Publish to queue
                         string queueName = _serviceConfig["Queue InteractionPermissions"].ToString();
@@ -264,7 +265,8 @@ namespace Tecala.SMO.ShareSync.Services
                         };
 
                         // Create job item with payload
-                        dbService.CreateJobItem(jobId, messageId, "InteractionCreation", FormatInteractionName(interactionNumber, interactionName), message);
+                        string itemIdentifier = $"{CleanFolderName(engagementName)} | {CleanFolderName(projectName)} | {FormatInteractionName(interactionNumber, interactionName)}";
+                        dbService.CreateJobItem(jobId, messageId, "InteractionCreation", itemIdentifier, message);
 
                         // Publish to queue
                         string queueName = _serviceConfig["Queue InteractionCreation"].ToString();
@@ -479,15 +481,10 @@ namespace Tecala.SMO.ShareSync.Services
 
         private string FormatInteractionName(int? interactionNumber, string name, int paddingWidth = 5)
         {
-            string cleanedName = CleanFolderName(name);
-
             if (!interactionNumber.HasValue || interactionNumber.Value <= 0)
-                return cleanedName;
+                return CleanFolderName(name);
 
-            string paddedNumber = interactionNumber.Value.ToString().PadLeft(paddingWidth, '0');
-            return string.IsNullOrWhiteSpace(cleanedName)
-                ? paddedNumber
-                : $"{paddedNumber} - {cleanedName}";
+            return $"Interaction{interactionNumber.Value}-R";
         }
 
         #endregion

@@ -1,0 +1,263 @@
+@model List<SharePointPermissionSync.Data.Entities.ProcessingJobItem>
+
+@{
+    ViewData["Title"] = "Search Items";
+    var searchText = ViewBag.SearchText as string;
+    var fromDate = ViewBag.FromDate as DateTime?;
+    var toDate = ViewBag.ToDate as DateTime?;
+    var status = ViewBag.Status as string;
+    var itemType = ViewBag.ItemType as string;
+    var currentPage = (int)ViewBag.CurrentPage;
+    var pageSize = (int)ViewBag.PageSize;
+    var totalCount = (int)ViewBag.TotalCount;
+    var totalPages = (int)ViewBag.TotalPages;
+}
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Search Items</h2>
+            <p class="text-muted">Search across all job items by Engagement, Project, Interaction names, or GUIDs</p>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Search Filters</h5>
+        </div>
+        <div class="card-body">
+            <form asp-action="Search" method="get">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="searchText" class="form-label">Search Text</label>
+                        <input type="text"
+                               class="form-control"
+                               id="searchText"
+                               name="searchText"
+                               value="@searchText"
+                               placeholder="Engagement, Project, Interaction name, or GUID">
+                        <small class="form-text text-muted">
+                            Search by name (e.g., "ABC Corp") or number (e.g., "1" for Interaction1-R)
+                        </small>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="fromDate" class="form-label">From Date</label>
+                        <input type="date"
+                               class="form-control"
+                               id="fromDate"
+                               name="fromDate"
+                               value="@(fromDate?.ToString("yyyy-MM-dd"))">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="toDate" class="form-label">To Date</label>
+                        <input type="date"
+                               class="form-control"
+                               id="toDate"
+                               name="toDate"
+                               value="@(toDate?.ToString("yyyy-MM-dd"))">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Statuses</option>
+                            <option value="Pending" selected="@(status == "Pending")">Pending</option>
+                            <option value="Processing" selected="@(status == "Processing")">Processing</option>
+                            <option value="Completed" selected="@(status == "Completed")">Completed</option>
+                            <option value="Failed" selected="@(status == "Failed")">Failed</option>
+                            <option value="Cancelled" selected="@(status == "Cancelled")">Cancelled</option>
+                            <option value="Requeued" selected="@(status == "Requeued")">Requeued</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="itemType" class="form-label">Item Type</label>
+                        <select class="form-select" id="itemType" name="itemType">
+                            <option value="">All Types</option>
+                            <option value="InteractionPermissionSync" selected="@(itemType == "InteractionPermissionSync")">Permission Sync</option>
+                            <option value="InteractionCreation" selected="@(itemType == "InteractionCreation")">Interaction Creation</option>
+                            <option value="RemoveUniquePermissions" selected="@(itemType == "RemoveUniquePermissions")">Remove Permissions</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                        <a asp-action="Search" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results Summary -->
+    @if (totalCount > 0)
+    {
+        <div class="alert alert-info">
+            Found <strong>@totalCount</strong> item(s) matching your search criteria
+            @if (fromDate.HasValue || toDate.HasValue)
+            {
+                <span>
+                    from <strong>@(fromDate?.ToString("yyyy-MM-dd") ?? "start")</strong>
+                    to <strong>@(toDate?.ToString("yyyy-MM-dd") ?? "now")</strong>
+                </span>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            No items found matching your search criteria. Try adjusting your filters or expanding the date range.
+        </div>
+    }
+
+    <!-- Results Table -->
+    @if (Model.Any())
+    {
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Search Results</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Processed</th>
+                                <th>Job</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                var itemStatusClass = item.Status switch
+                                {
+                                    "Completed" => "success",
+                                    "Failed" => "danger",
+                                    "Processing" => "warning",
+                                    "Cancelled" => "secondary",
+                                    _ => "secondary"
+                                };
+
+                                <tr>
+                                    <td>
+                                        <strong>@item.ItemIdentifier</strong>
+                                        <br />
+                                        <small class="text-muted">@item.MessageId.ToString().Substring(0, 8)</small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            @(item.ItemType == "InteractionPermissionSync" ? "Permission Sync" :
+                                              item.ItemType == "InteractionCreation" ? "Creation" :
+                                              item.ItemType)
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@itemStatusClass">@item.Status</span>
+                                        @if (item.RetryCount > 0)
+                                        {
+                                            <br />
+                                            <small class="text-muted">Retry @item.RetryCount/@item.MaxRetries</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <small>@item.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small>
+                                    </td>
+                                    <td>
+                                        @if (item.ProcessedAt.HasValue)
+                                        {
+                                            <small>@item.ProcessedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a asp-action="Details" asp-route-id="@item.JobId" class="btn btn-sm btn-outline-primary">
+                                            View Job
+                                        </a>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.ErrorMessage))
+                                        {
+                                            <small class="text-danger" title="@item.ErrorMessage">
+                                                @(item.ErrorMessage.Length > 50 ? item.ErrorMessage.Substring(0, 50) + "..." : item.ErrorMessage)
+                                            </small>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                @if (totalPages > 1)
+                {
+                    <nav aria-label="Search results pagination" class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <a class="page-link"
+                                   asp-action="Search"
+                                   asp-route-searchText="@searchText"
+                                   asp-route-fromDate="@fromDate?.ToString("yyyy-MM-dd")"
+                                   asp-route-toDate="@toDate?.ToString("yyyy-MM-dd")"
+                                   asp-route-status="@status"
+                                   asp-route-itemType="@itemType"
+                                   asp-route-page="@(currentPage - 1)"
+                                   asp-route-pageSize="@pageSize">
+                                    Previous
+                                </a>
+                            </li>
+
+                            @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                            {
+                                <li class="page-item @(i == currentPage ? "active" : "")">
+                                    <a class="page-link"
+                                       asp-action="Search"
+                                       asp-route-searchText="@searchText"
+                                       asp-route-fromDate="@fromDate?.ToString("yyyy-MM-dd")"
+                                       asp-route-toDate="@toDate?.ToString("yyyy-MM-dd")"
+                                       asp-route-status="@status"
+                                       asp-route-itemType="@itemType"
+                                       asp-route-page="@i"
+                                       asp-route-pageSize="@pageSize">
+                                        @i
+                                    </a>
+                                </li>
+                            }
+
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <a class="page-link"
+                                   asp-action="Search"
+                                   asp-route-searchText="@searchText"
+                                   asp-route-fromDate="@fromDate?.ToString("yyyy-MM-dd")"
+                                   asp-route-toDate="@toDate?.ToString("yyyy-MM-dd")"
+                                   asp-route-status="@status"
+                                   asp-route-itemType="@itemType"
+                                   asp-route-page="@(currentPage + 1)"
+                                   asp-route-pageSize="@pageSize">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            </div>
+        </div>
+    }
+</div>
