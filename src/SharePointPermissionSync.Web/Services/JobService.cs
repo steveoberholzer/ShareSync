@@ -185,11 +185,68 @@ public class JobService
     }
 
     /// <summary>
-    /// Resume a paused job
+    /// Resume a paused job and republish all paused items
     /// </summary>
     public async Task ResumeJobAsync(Guid jobId)
     {
+        // Resume the job status
         await _jobRepository.ResumeJobAsync(jobId);
+
+        // Get all paused items and republish them to the queue
+        var pausedItems = await _jobRepository.GetJobItemsAsync(jobId, "Paused");
+
+        if (pausedItems.Any())
+        {
+            _logger.LogInformation(
+                "Republishing {Count} paused items for job {JobId}",
+                pausedItems.Count,
+                jobId);
+
+            foreach (var item in pausedItems)
+            {
+                try
+                {
+                    // Deserialize the payload back to the original message type
+                    if (string.IsNullOrEmpty(item.Payload))
+                        continue;
+
+                    QueueMessageBase? message = item.ItemType switch
+                    {
+                        "InteractionPermission" => System.Text.Json.JsonSerializer.Deserialize<InteractionPermissionMessage>(item.Payload),
+                        "InteractionCreation" => System.Text.Json.JsonSerializer.Deserialize<InteractionCreationMessage>(item.Payload),
+                        "RemoveUniquePermission" => System.Text.Json.JsonSerializer.Deserialize<RemoveUniquePermissionMessage>(item.Payload),
+                        _ => null
+                    };
+
+                    if (message == null)
+                    {
+                        _logger.LogWarning("Failed to deserialize paused item {MessageId}", item.MessageId);
+                        continue;
+                    }
+
+                    // Determine queue name based on message type
+                    var queueName = message switch
+                    {
+                        InteractionPermissionMessage => _configuration["RabbitMQ:Queues:InteractionPermissions"] ?? "sharepoint.interaction.permissions",
+                        InteractionCreationMessage => _configuration["RabbitMQ:Queues:InteractionCreation"] ?? "sharepoint.interaction.creation",
+                        RemoveUniquePermissionMessage => _configuration["RabbitMQ:Queues:RemovePermissions"] ?? "sharepoint.remove.permissions",
+                        _ => throw new InvalidOperationException($"Unknown message type: {message.GetType().Name}")
+                    };
+
+                    // Republish to queue
+                    await _queueService.PublishAsync(queueName, message);
+
+                    // Update status back to Pending
+                    await _jobRepository.UpdateJobItemStatusAsync(item.MessageId, "Pending");
+
+                    _logger.LogInformation("Republished paused item {MessageId} to queue {QueueName}", item.MessageId, queueName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to republish paused item {MessageId}", item.MessageId);
+                }
+            }
+        }
     }
 
     /// <summary>

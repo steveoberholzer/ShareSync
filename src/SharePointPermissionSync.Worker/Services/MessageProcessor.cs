@@ -71,15 +71,19 @@ public class MessageProcessor
             if (jobStatus == "Paused")
             {
                 _logger.LogInformation(
-                    "Skipping message {MessageId} - Job {JobId} is paused. Message will be requeued.",
+                    "Job {JobId} is paused. Marking message {MessageId} as paused.",
+                    message.JobId,
+                    message.MessageId);
+
+                // Mark item as "Paused" in database
+                // When job is resumed, these items will be republished
+                await _jobRepository.UpdateJobItemStatusAsync(
                     message.MessageId,
-                    message.JobId);
+                    "Paused",
+                    "Job was paused");
 
-                // Requeue the message for later processing
-                var queueName = GetQueueNameForMessage(message);
-                await _rabbitMqService.PublishAsync(queueName, message);
-
-                return; // Skip processing
+                // Acknowledge the message (remove from queue) - it will be republished on resume
+                return;
             }
 
             // Update job item status to Processing
