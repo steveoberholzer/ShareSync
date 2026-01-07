@@ -232,54 +232,118 @@ public class JobService
                     continue;
                 }
 
-                QueueMessageBase? message = item.ItemType switch
-                {
-                    "InteractionPermission" => System.Text.Json.JsonSerializer.Deserialize<InteractionPermissionMessage>(item.Payload),
-                    "InteractionCreation" => System.Text.Json.JsonSerializer.Deserialize<InteractionCreationMessage>(item.Payload),
-                    "RemoveUniquePermission" => System.Text.Json.JsonSerializer.Deserialize<RemoveUniquePermissionMessage>(item.Payload),
-                    _ => null
-                };
-
-                if (message == null)
-                {
-                    _logger.LogWarning("Failed to deserialize item {MessageId} of type {ItemType}", item.MessageId, item.ItemType);
-                    continue;
-                }
-
-                // Update message with new JobId and MessageId
                 var newMessageId = Guid.NewGuid();
-                message.JobId = newJob.JobId;
-                message.MessageId = newMessageId;
 
-                // Determine queue name based on message type
-                var queueName = message switch
+                // Handle each message type separately to preserve proper serialization
+                switch (item.ItemType)
                 {
-                    InteractionPermissionMessage => _configuration["RabbitMQ:Queues:InteractionPermissions"] ?? "sharepoint.interaction.permissions",
-                    InteractionCreationMessage => _configuration["RabbitMQ:Queues:InteractionCreation"] ?? "sharepoint.interaction.creation",
-                    RemoveUniquePermissionMessage => _configuration["RabbitMQ:Queues:RemovePermissions"] ?? "sharepoint.remove.permissions",
-                    _ => throw new InvalidOperationException($"Unknown message type: {message.GetType().Name}")
-                };
+                    case "InteractionPermissionSync":
+                        {
+                            var message = JsonSerializer.Deserialize<InteractionPermissionMessage>(item.Payload);
+                            if (message == null)
+                            {
+                                _logger.LogWarning("Failed to deserialize InteractionPermissionMessage {MessageId}", item.MessageId);
+                                continue;
+                            }
 
-                // Create new job item in database
-                var newItem = new ProcessingJobItem
-                {
-                    MessageId = newMessageId,
-                    JobId = newJob.JobId,
-                    ItemType = item.ItemType,
-                    Status = "Pending",
-                    Payload = System.Text.Json.JsonSerializer.Serialize(message),
-                    ItemIdentifier = item.ItemIdentifier,
-                    CreatedAt = DateTime.UtcNow
-                };
+                            message.JobId = newJob.JobId;
+                            message.MessageId = newMessageId;
 
-                await _jobRepository.AddJobItemAsync(newItem);
+                            var newItem = new ProcessingJobItem
+                            {
+                                MessageId = newMessageId,
+                                JobId = newJob.JobId,
+                                ItemType = item.ItemType,
+                                Status = "Pending",
+                                Payload = JsonSerializer.Serialize(message),
+                                ItemIdentifier = item.ItemIdentifier,
+                                CreatedAt = DateTime.UtcNow
+                            };
 
-                // Republish to queue
-                await _queueService.PublishAsync(queueName, message, GetPriorityValue(newJob.Priority));
+                            await _jobRepository.AddJobItemAsync(newItem);
 
-                successCount++;
-                _logger.LogDebug("Republished item {OldMessageId} as {NewMessageId} to queue {QueueName}",
-                    item.MessageId, newMessageId, queueName);
+                            var queueName = _configuration["RabbitMQ:Queues:InteractionPermissions"] ?? "sharepoint.interaction.permissions";
+                            await _queueService.PublishAsync(queueName, message, GetPriorityValue(newJob.Priority));
+
+                            successCount++;
+                            _logger.LogDebug("Republished InteractionPermission item {OldMessageId} as {NewMessageId}",
+                                item.MessageId, newMessageId);
+                            break;
+                        }
+
+                    case "InteractionCreation":
+                        {
+                            var message = JsonSerializer.Deserialize<InteractionCreationMessage>(item.Payload);
+                            if (message == null)
+                            {
+                                _logger.LogWarning("Failed to deserialize InteractionCreationMessage {MessageId}", item.MessageId);
+                                continue;
+                            }
+
+                            message.JobId = newJob.JobId;
+                            message.MessageId = newMessageId;
+
+                            var newItem = new ProcessingJobItem
+                            {
+                                MessageId = newMessageId,
+                                JobId = newJob.JobId,
+                                ItemType = item.ItemType,
+                                Status = "Pending",
+                                Payload = JsonSerializer.Serialize(message),
+                                ItemIdentifier = item.ItemIdentifier,
+                                CreatedAt = DateTime.UtcNow
+                            };
+
+                            await _jobRepository.AddJobItemAsync(newItem);
+
+                            var queueName = _configuration["RabbitMQ:Queues:InteractionCreation"] ?? "sharepoint.interaction.creation";
+                            await _queueService.PublishAsync(queueName, message, GetPriorityValue(newJob.Priority));
+
+                            successCount++;
+                            _logger.LogDebug("Republished InteractionCreation item {OldMessageId} as {NewMessageId}",
+                                item.MessageId, newMessageId);
+                            break;
+                        }
+
+                    case "RemoveUniquePermissions":
+                        {
+                            var message = JsonSerializer.Deserialize<RemoveUniquePermissionMessage>(item.Payload);
+                            if (message == null)
+                            {
+                                _logger.LogWarning("Failed to deserialize RemoveUniquePermissionMessage {MessageId}", item.MessageId);
+                                continue;
+                            }
+
+                            message.JobId = newJob.JobId;
+                            message.MessageId = newMessageId;
+
+                            var newItem = new ProcessingJobItem
+                            {
+                                MessageId = newMessageId,
+                                JobId = newJob.JobId,
+                                ItemType = item.ItemType,
+                                Status = "Pending",
+                                Payload = JsonSerializer.Serialize(message),
+                                ItemIdentifier = item.ItemIdentifier,
+                                CreatedAt = DateTime.UtcNow
+                            };
+
+                            await _jobRepository.AddJobItemAsync(newItem);
+
+                            var queueName = _configuration["RabbitMQ:Queues:RemovePermissions"] ?? "sharepoint.remove.permissions";
+                            await _queueService.PublishAsync(queueName, message, GetPriorityValue(newJob.Priority));
+
+                            successCount++;
+                            _logger.LogDebug("Republished RemoveUniquePermission item {OldMessageId} as {NewMessageId}",
+                                item.MessageId, newMessageId);
+                            break;
+                        }
+
+                    default:
+                        _logger.LogWarning("Unknown ItemType {ItemType} for item {MessageId}, skipping",
+                            item.ItemType, item.MessageId);
+                        continue;
+                }
             }
             catch (Exception ex)
             {
