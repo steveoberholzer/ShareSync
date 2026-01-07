@@ -1,22 +1,612 @@
+/* ============================================
+   Corporate Design System - SharePoint Permission Sync
+   ============================================ */
+
+/* ============================================
+   1. Typography & Base Styles
+   ============================================ */
+
+@import url('https://fonts.cdnfonts.com/css/avenir-next-lt-pro');
+
+:root {
+    /* Corporate Colors */
+    --scyne-primary: rgb(70, 78, 126);
+    --scyne-primary-dark: rgb(55, 62, 100);
+    --scyne-primary-light: rgb(90, 98, 146);
+
+    /* Accent Colors */
+    --accent-teal: #17a2b8;
+    --accent-blue: #0d6efd;
+
+    /* Status Colors */
+    --status-success: #28a745;
+    --status-warning: #ffc107;
+    --status-danger: #dc3545;
+    --status-info: #17a2b8;
+    --status-secondary: #6c757d;
+
+    /* Neutral Colors */
+    --gray-50: #f8f9fa;
+    --gray-100: #e9ecef;
+    --gray-200: #dee2e6;
+    --gray-300: #ced4da;
+    --gray-600: #6c757d;
+    --gray-800: #343a40;
+    --gray-900: #212529;
+
+    /* Typography */
+    --font-family-base: 'Avenir Next LT Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-size-base: 14px;
+    --font-size-lg: 16px;
+    --font-size-sm: 12px;
+
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+    /* Border Radius */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+}
+
 html {
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
+    font-size: var(--font-size-base);
+    position: relative;
+    min-height: 100%;
 }
 
 body {
-  margin-bottom: 60px;
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--gray-800);
+    background-color: var(--gray-50);
+    margin: 0;
+    padding: 0;
+}
+
+/* ============================================
+   2. Corporate Header
+   ============================================ */
+
+.corporate-header {
+    background-color: var(--scyne-primary);
+    color: white;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+}
+
+.corporate-header .navbar {
+    background-color: transparent;
+    border: none;
+    padding: 0.75rem 0;
+}
+
+.corporate-header .navbar-brand {
+    display: flex;
+    align-items: center;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 0;
+}
+
+.corporate-header .navbar-brand:hover {
+    color: white;
+    opacity: 0.9;
+}
+
+.corporate-header .navbar-brand img {
+    height: 40px;
+    margin-right: var(--spacing-md);
+}
+
+.corporate-header .nav-link {
+    color: white !important;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+    border-radius: var(--radius-sm);
+}
+
+.corporate-header .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.corporate-header .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.corporate-header .dropdown-menu {
+    border: none;
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0;
+}
+
+.corporate-header .dropdown-item {
+    font-size: var(--font-size-base);
+    padding: 0.5rem 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.corporate-header .dropdown-item:hover {
+    background-color: var(--gray-50);
+    color: var(--scyne-primary);
+}
+
+/* ============================================
+   3. Dashboard & Cards
+   ============================================ */
+
+.dashboard-container {
+    padding: var(--spacing-xl) 0;
+}
+
+.dashboard-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.dashboard-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-sm);
+}
+
+.dashboard-header p {
+    font-size: var(--font-size-lg);
+    color: var(--gray-600);
+    margin: 0;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.stat-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.stat-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: var(--spacing-md);
+}
+
+.stat-card-icon.primary {
+    background-color: rgba(70, 78, 126, 0.1);
+    color: var(--scyne-primary);
+}
+
+.stat-card-icon.success {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--status-success);
+}
+
+.stat-card-icon.warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: var(--status-warning);
+}
+
+.stat-card-icon.danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--status-danger);
+}
+
+.stat-card-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-xs);
+    line-height: 1;
+}
+
+.stat-card-label {
+    font-size: var(--font-size-base);
+    color: var(--gray-600);
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.stat-card-trend {
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-sm);
+}
+
+.stat-card-trend.up {
+    color: var(--status-success);
+}
+
+.stat-card-trend.down {
+    color: var(--status-danger);
+}
+
+/* ============================================
+   4. Enhanced Cards
+   ============================================ */
+
+.card {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    background: white;
+    margin-bottom: var(--spacing-lg);
+}
+
+.card-header {
+    background-color: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.card-header h5 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0;
+}
+
+.card-body {
+    padding: var(--spacing-lg);
+}
+
+.card-footer {
+    background-color: var(--gray-50);
+    border-top: 1px solid var(--gray-200);
+    padding: var(--spacing-md) var(--spacing-lg);
+}
+
+/* ============================================
+   5. Tables
+   ============================================ */
+
+.table-modern {
+    width: 100%;
+    margin-bottom: 0;
+    font-size: var(--font-size-base);
+}
+
+.table-modern thead {
+    background-color: var(--gray-50);
+}
+
+.table-modern thead th {
+    border-bottom: 2px solid var(--gray-300);
+    padding: 0.75rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.table-modern tbody tr {
+    border-bottom: 1px solid var(--gray-200);
+    transition: background-color 0.2s ease;
+}
+
+.table-modern tbody tr:hover {
+    background-color: var(--gray-50);
+}
+
+.table-modern tbody td {
+    padding: 0.75rem;
+    vertical-align: middle;
+}
+
+.table-modern tbody tr:last-child {
+    border-bottom: none;
+}
+
+/* ============================================
+   6. Status Badges
+   ============================================ */
+
+.badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.35em 0.75em;
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge.bg-success {
+    background-color: var(--status-success) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--status-warning) !important;
+    color: var(--gray-900) !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--status-danger) !important;
+}
+
+.badge.bg-info {
+    background-color: var(--status-info) !important;
+}
+
+.badge.bg-secondary {
+    background-color: var(--status-secondary) !important;
+}
+
+/* ============================================
+   7. Buttons
+   ============================================ */
+
+.btn {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.btn-primary {
+    background-color: var(--scyne-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--scyne-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-outline-primary {
+    border: 1px solid var(--scyne-primary);
+    color: var(--scyne-primary);
+    background-color: transparent;
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--scyne-primary);
+    color: white;
+}
+
+.btn-sm {
+    font-size: var(--font-size-sm);
+    padding: 0.375rem 0.75rem;
+}
+
+/* ============================================
+   8. Forms
+   ============================================ */
+
+.form-label {
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: var(--spacing-sm);
+    font-size: var(--font-size-base);
+}
+
+.form-control,
+.form-select {
+    font-size: var(--font-size-base);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--scyne-primary);
+    box-shadow: 0 0 0 0.2rem rgba(70, 78, 126, 0.15);
+}
+
+.form-text {
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+}
+
+/* ============================================
+   9. Alerts
+   ============================================ */
+
+.alert {
+    border-radius: var(--radius-md);
+    border: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.alert-info {
+    background-color: rgba(23, 162, 184, 0.1);
+    color: #0c5460;
+}
+
+.alert-success {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #155724;
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #856404;
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #721c24;
+}
+
+/* ============================================
+   10. Progress Bars
+   ============================================ */
+
+.progress {
+    border-radius: var(--radius-md);
+    background-color: var(--gray-200);
+    height: 1.5rem;
+}
+
+.progress-bar {
+    border-radius: var(--radius-md);
+    transition: width 0.6s ease;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+/* ============================================
+   11. Pagination
+   ============================================ */
+
+.pagination {
+    gap: 0.25rem;
+}
+
+.page-link {
+    border: 1px solid var(--gray-300);
+    color: var(--scyne-primary);
+    font-size: var(--font-size-base);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+}
+
+.page-link:hover {
+    background-color: var(--gray-50);
+    border-color: var(--scyne-primary);
+}
+
+.page-item.active .page-link {
+    background-color: var(--scyne-primary);
+    border-color: var(--scyne-primary);
+}
+
+/* ============================================
+   12. Footer
+   ============================================ */
+
+.footer {
+    background-color: white;
+    border-top: 1px solid var(--gray-200);
+    padding: var(--spacing-lg) 0;
+    margin-top: var(--spacing-xl);
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+}
+
+/* ============================================
+   13. Utility Classes
+   ============================================ */
+
+.text-muted {
+    color: var(--gray-600) !important;
+}
+
+.bg-light {
+    background-color: var(--gray-50) !important;
+}
+
+.border-light {
+    border-color: var(--gray-200) !important;
+}
+
+/* Page Titles */
+.page-header {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.page-header h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-xs);
+}
+
+.page-header p {
+    font-size: var(--font-size-lg);
+    color: var(--gray-600);
+    margin: 0;
+}
+
+/* Icon sizes */
+.icon-sm {
+    font-size: 16px;
+}
+
+.icon-md {
+    font-size: 20px;
+}
+
+.icon-lg {
+    font-size: 24px;
+}
+
+/* Loading States */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.spinner-border {
+    border-color: var(--scyne-primary);
+    border-right-color: transparent;
+}
+
+/* ============================================
+   14. Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 768px) {
+    html {
+        font-size: 11px;
+    }
+
+    .stat-card {
+        margin-bottom: var(--spacing-md);
+    }
+
+    .corporate-header .navbar-brand img {
+        height: 32px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .container-fluid {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
 }

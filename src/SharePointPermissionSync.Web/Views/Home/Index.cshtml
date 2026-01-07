@@ -1,8 +1,215 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Dashboard";
+    var recentJobs = ViewBag.RecentJobs as List<SharePointPermissionSync.Data.Entities.ProcessingJob> ?? new List<SharePointPermissionSync.Data.Entities.ProcessingJob>();
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="dashboard-container">
+    <div class="container-fluid">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <h1>Dashboard</h1>
+            <p>Monitor and manage SharePoint permission synchronization operations</p>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="stat-card">
+                    <div class="stat-card-icon primary">
+                        <i class="bi bi-briefcase"></i>
+                    </div>
+                    <div class="stat-card-value">@ViewBag.TotalJobs</div>
+                    <div class="stat-card-label">Total Jobs</div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="stat-card">
+                    <div class="stat-card-icon warning">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                    <div class="stat-card-value">@ViewBag.ActiveJobs</div>
+                    <div class="stat-card-label">Active Jobs</div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="stat-card">
+                    <div class="stat-card-icon success">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="stat-card-value">@ViewBag.CompletedJobs</div>
+                    <div class="stat-card-label">Completed Jobs</div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="stat-card">
+                    <div class="stat-card-icon danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-card-value">@ViewBag.FailedJobs</div>
+                    <div class="stat-card-label">Failed Jobs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Rate Card -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <div style="font-size: 48px; font-weight: 700; color: var(--scyne-primary);">
+                                    @ViewBag.SuccessRate%
+                                </div>
+                                <div class="text-muted" style="font-size: 12px;">Success Rate</div>
+                            </div>
+                            <div class="col-md-10">
+                                <div class="progress" style="height: 30px;">
+                                    <div class="progress-bar bg-success"
+                                         role="progressbar"
+                                         style="width: @ViewBag.SuccessRate%"
+                                         aria-valuenow="@ViewBag.SuccessRate"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                        @ViewBag.SuccessRate% Success
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <a asp-controller="Operations" asp-action="InteractionPermissions" class="btn btn-primary w-100 py-3">
+                                    <i class="bi bi-shield-lock icon-lg"></i>
+                                    <div class="mt-2">Sync Permissions</div>
+                                    <small class="text-white-50">Update interaction permissions</small>
+                                </a>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <a asp-controller="Operations" asp-action="InteractionCreation" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="bi bi-folder-plus icon-lg"></i>
+                                    <div class="mt-2">Create Interactions</div>
+                                    <small class="text-muted">Create new interaction folders</small>
+                                </a>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <a asp-controller="Jobs" asp-action="Search" class="btn btn-outline-primary w-100 py-3">
+                                    <i class="bi bi-search icon-lg"></i>
+                                    <div class="mt-2">Search Items</div>
+                                    <small class="text-muted">Find specific items by name</small>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Jobs -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>Recent Jobs</h5>
+                        <a asp-controller="Jobs" asp-action="Index" class="btn btn-sm btn-outline-primary">
+                            View All Jobs <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (recentJobs.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-modern mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Job ID</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Progress</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var job in recentJobs)
+                                        {
+                                            var statusClass = job.Status switch
+                                            {
+                                                "Completed" => "success",
+                                                "Completed with Errors" => "warning",
+                                                "Failed" => "danger",
+                                                "Processing" => "info",
+                                                "Cancelled" => "secondary",
+                                                _ => "secondary"
+                                            };
+                                            var progressPercent = job.TotalItems > 0 ? (int)((decimal)job.ProcessedItems / job.TotalItems * 100) : 0;
+
+                                            <tr>
+                                                <td>
+                                                    <code>@job.JobId.ToString().Substring(0, 8)</code>
+                                                </td>
+                                                <td>
+                                                    @(job.JobType == "InteractionPermissionSync" ? "Permission Sync" :
+                                                      job.JobType == "InteractionCreation" ? "Creation" :
+                                                      job.JobType)
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-@statusClass">@job.Status</span>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="progress flex-grow-1 me-2" style="height: 8px; min-width: 100px;">
+                                                            <div class="progress-bar bg-@statusClass"
+                                                                 role="progressbar"
+                                                                 style="width: @progressPercent%"
+                                                                 aria-valuenow="@progressPercent"
+                                                                 aria-valuemin="0"
+                                                                 aria-valuemax="100">
+                                                            </div>
+                                                        </div>
+                                                        <small class="text-muted">@job.ProcessedItems/@job.TotalItems</small>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <small>@job.CreatedAt.ToLocalTime().ToString("MMM dd, HH:mm")</small>
+                                                </td>
+                                                <td>
+                                                    <a asp-controller="Jobs" asp-action="Details" asp-route-id="@job.JobId"
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-eye"></i> View
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="p-4 text-center text-muted">
+                                <i class="bi bi-inbox icon-lg d-block mb-2"></i>
+                                No jobs found. Start by creating a new operation.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

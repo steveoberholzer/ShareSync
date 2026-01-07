@@ -15,18 +15,21 @@
     };
 }
 
-<div class="container mt-4">
-    <div class="row mb-3">
-        <div class="col">
-            <h2>Job Details</h2>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item">
-                        <a asp-action="Index">Jobs</a>
-                    </li>
-                    <li class="breadcrumb-item active">@Model.JobId.ToString().Substring(0, 8)</li>
-                </ol>
-            </nav>
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h2>Job Details</h2>
+                <p>
+                    <a asp-action="Index" class="text-muted">
+                        <i class="bi bi-arrow-left"></i> Back to Jobs
+                    </a>
+                </p>
+            </div>
+            <div class="col-auto">
+                <code class="fs-6">@Model.JobId.ToString().Substring(0, 8)</code>
+            </div>
         </div>
     </div>
 
@@ -115,29 +118,32 @@
                         </div>
                     </div>
 
-                    <div class="row text-center">
+                    <div class="row text-center g-3">
                         <div class="col-4">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h3 class="mb-0">@Model.TotalItems</h3>
-                                    <small class="text-muted">Total</small>
+                            <div class="stat-card">
+                                <div class="stat-card-icon primary">
+                                    <i class="bi bi-list-check"></i>
                                 </div>
+                                <div class="stat-card-value" style="font-size: 24px;">@Model.TotalItems</div>
+                                <div class="stat-card-label">Total</div>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="card bg-success text-white">
-                                <div class="card-body">
-                                    <h3 class="mb-0">@(Model.ProcessedItems - Model.FailedItems)</h3>
-                                    <small>Completed</small>
+                            <div class="stat-card">
+                                <div class="stat-card-icon success">
+                                    <i class="bi bi-check-circle"></i>
                                 </div>
+                                <div class="stat-card-value" style="font-size: 24px;">@(Model.ProcessedItems - Model.FailedItems)</div>
+                                <div class="stat-card-label">Completed</div>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="card bg-danger text-white">
-                                <div class="card-body">
-                                    <h3 class="mb-0">@Model.FailedItems</h3>
-                                    <small>Failed</small>
+                            <div class="stat-card">
+                                <div class="stat-card-icon danger">
+                                    <i class="bi bi-x-circle"></i>
                                 </div>
+                                <div class="stat-card-value" style="font-size: 24px;">@Model.FailedItems</div>
+                                <div class="stat-card-label">Failed</div>
                             </div>
                         </div>
                     </div>
@@ -228,9 +234,9 @@
             <div class="card-header">
                 <h5 class="mb-0">Job Items (@items.Count)</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-sm table-striped">
+                    <table class="table table-modern mb-0">
                         <thead>
                             <tr>
                                 <th>Item</th>

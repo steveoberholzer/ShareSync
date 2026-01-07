@@ -2,19 +2,14 @@
     ViewData["Title"] = "Interaction Permission Sync";
 }
 
-<div class="container mt-4">
-    <div class="row mb-3">
-        <div class="col">
-            <h2>Interaction Permission Sync</h2>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item">
-                        <a asp-controller="Jobs" asp-action="Index">Jobs</a>
-                    </li>
-                    <li class="breadcrumb-item active">Interaction Permissions</li>
-                </ol>
-            </nav>
-        </div>
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h2>
+            <i class="bi bi-shield-lock text-primary"></i>
+            Interaction Permission Sync
+        </h2>
+        <p>Synchronize SharePoint permissions for interaction folders</p>
     </div>
 
     <div class="row">
@@ -70,8 +65,10 @@
 
         <div class="col-md-4">
             <div class="card">
-                <div class="card-header bg-info text-white">
-                    <h6 class="mb-0">CSV Format</h6>
+                <div class="card-header" style="background-color: var(--status-info); color: white;">
+                    <h6 class="mb-0">
+                        <i class="bi bi-file-earmark-text"></i> CSV Format
+                    </h6>
                 </div>
                 <div class="card-body">
                     <p class="mb-2"><strong>Required Columns:</strong></p>
@@ -94,8 +91,10 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890,Edit,user1@domain.com;user2@domain.com</cod
             </div>
 
             <div class="card mt-3">
-                <div class="card-header bg-warning">
-                    <h6 class="mb-0">Important Notes</h6>
+                <div class="card-header" style="background-color: var(--status-warning); color: var(--gray-900);">
+                    <h6 class="mb-0">
+                        <i class="bi bi-info-circle"></i> Important Notes
+                    </h6>
                 </div>
                 <div class="card-body">
                     <ul class="small mb-0">
