@@ -37,6 +37,20 @@ public class InteractionCreationHandler : IOperationHandler<InteractionCreationM
 
         try
         {
+            // === VALIDATION: Check if Interaction folder already exists ===
+            if (message.InteractionSharePointFolderId.HasValue &&
+                message.InteractionSharePointFolderId.Value > 0)
+            {
+                _logger.LogWarning(
+                    "Interaction '{InteractionName}' (ID: {InteractionId}) already has SharePoint folder ID {FolderId}. " +
+                    "Skipping creation. Use InteractionPermission operation to update permissions on existing folders.",
+                    message.InteractionName,
+                    message.InteractionId,
+                    message.InteractionSharePointFolderId.Value);
+
+                return OperationResult.SuccessResult();
+            }
+
             int projectSharePointFolderId;
 
             // === STEP 1: Check if Project folder exists, create if needed ===
