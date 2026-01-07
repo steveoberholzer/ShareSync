@@ -41,7 +41,6 @@ public class OperationsController : Controller
     public async Task<IActionResult> UploadInteractionPermissions(
         IFormFile csvFile,
         string environment,
-        string siteUrl,
         string priority = "Medium")
     {
         if (csvFile == null || csvFile.Length == 0)
@@ -128,7 +127,7 @@ public class OperationsController : Controller
                     EngagementName = SharePointNameHelper.CleanFolderName(engagement.Name),
 
                     // SharePoint configuration (SiteURL from Engagement table)
-                    SiteUrl = engagement.SiteURL ?? siteUrl,
+                    SiteUrl = engagement.SiteURL,
                     DocumentLibrary = "Documents",
 
                     // Permissions
@@ -156,7 +155,7 @@ public class OperationsController : Controller
                 csvFile.FileName,
                 User.Identity?.Name ?? "Anonymous",
                 environment,
-                siteUrl,
+                null, // SiteUrl is retrieved from Engagement records
                 messages,
                 priority);
 
@@ -192,7 +191,6 @@ public class OperationsController : Controller
     public async Task<IActionResult> UploadInteractionCreation(
         IFormFile csvFile,
         string environment,
-        string siteUrl,
         string priority = "Medium")
     {
         if (csvFile == null || csvFile.Length == 0)
@@ -254,7 +252,7 @@ public class OperationsController : Controller
                     EngagementName = SharePointNameHelper.CleanFolderName(engagement.Name),
 
                     // SharePoint configuration (SiteURL from Engagement table)
-                    SiteUrl = engagement.SiteURL ?? siteUrl,
+                    SiteUrl = engagement.SiteURL,
                     DocumentLibrary = "Documents",
                     ProjectSubfolder = row.ProjectSubfolder ?? string.Empty,
                     CreatedBy = User.Identity?.Name ?? "Anonymous",
@@ -290,7 +288,7 @@ public class OperationsController : Controller
                 csvFile.FileName,
                 User.Identity?.Name ?? "Anonymous",
                 environment,
-                siteUrl,
+                null, // SiteUrl is retrieved from Engagement records
                 sortedMessages,
                 priority);
 
