@@ -234,4 +234,73 @@ public class JobRepository : IJobRepository
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task CancelJobAsync(Guid jobId)
+    {
+        var job = await _context.ProcessingJobs
+            .FirstOrDefaultAsync(j => j.JobId == jobId);
+
+        if (job != null)
+        {
+            job.Status = "Cancelled";
+            await _context.SaveChangesAsync();
+
+            // Cancel all Pending items (not Processing, Completed, or Failed)
+            await BulkUpdateJobItemStatusAsync(jobId, "Pending", "Cancelled");
+        }
+    }
+
+    public async Task PauseJobAsync(Guid jobId)
+    {
+        var job = await _context.ProcessingJobs
+            .FirstOrDefaultAsync(j => j.JobId == jobId);
+
+        if (job != null)
+        {
+            job.Status = "Paused";
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task ResumeJobAsync(Guid jobId)
+    {
+        var job = await _context.ProcessingJobs
+            .FirstOrDefaultAsync(j => j.JobId == jobId);
+
+        if (job != null)
+        {
+            // Determine new status based on progress
+            var hasProcessing = await _context.ProcessingJobItems
+                .AnyAsync(i => i.JobId == jobId && i.Status == "Processing");
+
+            job.Status = hasProcessing ? "Processing" : "Queued";
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task BulkUpdateJobItemStatusAsync(Guid jobId, string fromStatus, string toStatus)
+    {
+        var items = await _context.ProcessingJobItems
+            .Where(i => i.JobId == jobId && i.Status == fromStatus)
+            .ToListAsync();
+
+        foreach (var item in items)
+        {
+            item.Status = toStatus;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateJobItemPayloadAsync(Guid messageId, string payload)
+    {
+        var item = await _context.ProcessingJobItems
+            .FirstOrDefaultAsync(i => i.MessageId == messageId);
+
+        if (item != null)
+        {
+            item.Payload = payload;
+            await _context.SaveChangesAsync();
+        }
+    }
 }

@@ -50,6 +50,40 @@ public class MessageProcessor
                 message.OperationType,
                 message.JobId);
 
+            // Check if job is cancelled or paused
+            var job = await _jobRepository.GetJobByIdAsync(message.JobId);
+            if (job != null)
+            {
+                if (job.Status == "Cancelled")
+                {
+                    _logger.LogWarning(
+                        "Skipping message {MessageId} - Job {JobId} is cancelled",
+                        message.MessageId,
+                        message.JobId);
+
+                    await _jobRepository.UpdateJobItemStatusAsync(
+                        message.MessageId,
+                        "Cancelled",
+                        "Job was cancelled");
+
+                    return; // Skip processing
+                }
+
+                if (job.Status == "Paused")
+                {
+                    _logger.LogInformation(
+                        "Skipping message {MessageId} - Job {JobId} is paused. Message will be requeued.",
+                        message.MessageId,
+                        message.JobId);
+
+                    // Requeue the message for later processing
+                    var queueName = GetQueueNameForMessage(message);
+                    await _rabbitMqService.PublishAsync(queueName, message);
+
+                    return; // Skip processing
+                }
+            }
+
             // Update job item status to Processing
             await _jobRepository.UpdateJobItemStatusAsync(
                 message.MessageId,

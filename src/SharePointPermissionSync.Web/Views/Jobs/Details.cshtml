@@ -7,8 +7,11 @@
     var statusClass = Model.Status switch
     {
         "Completed" => "success",
+        "Completed with Errors" => "warning",
         "Failed" => "danger",
-        "Processing" => "warning",
+        "Processing" => "info",
+        "Paused" => "warning",
+        "Cancelled" => "secondary",
         _ => "secondary"
     };
 }
@@ -138,6 +141,101 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Job Actions Card -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Job Actions</h5>
+                </div>
+                <div class="card-body">
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            @TempData["SuccessMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            @TempData["ErrorMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <div class="d-grid gap-2">
+                        @if (Model.Status == "Queued" || Model.Status == "Processing")
+                        {
+                            <!-- Pause Button -->
+                            <form asp-action="Pause" asp-route-id="@Model.JobId" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-warning w-100"
+                                        onclick="return confirm('Are you sure you want to pause this job?');">
+                                    <i class="bi bi-pause-circle"></i> Pause Job
+                                </button>
+                            </form>
+
+                            <!-- Cancel Button -->
+                            <form asp-action="Cancel" asp-route-id="@Model.JobId" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-danger w-100"
+                                        onclick="return confirm('Are you sure you want to cancel this job? All pending items will be cancelled.');">
+                                    <i class="bi bi-x-circle"></i> Cancel Job
+                                </button>
+                            </form>
+                        }
+
+                        @if (Model.Status == "Paused")
+                        {
+                            <!-- Resume Button -->
+                            <form asp-action="Resume" asp-route-id="@Model.JobId" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-play-circle"></i> Resume Job
+                                </button>
+                            </form>
+
+                            <!-- Cancel Button (also available when paused) -->
+                            <form asp-action="Cancel" asp-route-id="@Model.JobId" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-danger w-100"
+                                        onclick="return confirm('Are you sure you want to cancel this job? All pending items will be cancelled.');">
+                                    <i class="bi bi-x-circle"></i> Cancel Job
+                                </button>
+                            </form>
+                        }
+
+                        <!-- Change Priority (available for Queued/Processing/Paused) -->
+                        @if (Model.Status == "Queued" || Model.Status == "Processing" || Model.Status == "Paused")
+                        {
+                            <hr class="my-2" />
+                            <form asp-action="UpdatePriority" asp-route-id="@Model.JobId" method="post">
+                                @Html.AntiForgeryToken()
+                                <div class="input-group">
+                                    <label class="input-group-text" for="priority">Priority:</label>
+                                    <select class="form-select" id="priority" name="priority">
+                                        <option value="Low">Low</option>
+                                        <option value="Medium" selected>Medium</option>
+                                        <option value="High">High</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-primary">Update</button>
+                                    <script>
+                                        document.querySelector('#priority').value = '@Model.Priority';
+                                    </script>
+                                </div>
+                            </form>
+                        }
+
+                        @if (Model.Status == "Cancelled" || Model.Status == "Completed" || Model.Status == "Failed" || Model.Status == "Completed with Errors")
+                        {
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                This job has finished and cannot be modified.
+                            </div>
+                        }
                     </div>
                 </div>
             </div>

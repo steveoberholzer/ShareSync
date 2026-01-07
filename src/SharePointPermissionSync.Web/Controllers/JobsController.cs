@@ -74,4 +74,114 @@ public class JobsController : Controller
             errorMessage = job.ErrorMessage
         });
     }
+
+    /// <summary>
+    /// Cancel a job and all its pending items
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Cancel(Guid id)
+    {
+        try
+        {
+            await _jobService.CancelJobAsync(id);
+            _logger.LogInformation("Job {JobId} cancelled", id);
+            TempData["SuccessMessage"] = "Job cancelled successfully. All pending items have been cancelled.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling job {JobId}", id);
+            TempData["ErrorMessage"] = $"Failed to cancel job: {ex.Message}";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    /// <summary>
+    /// Pause a job
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Pause(Guid id)
+    {
+        try
+        {
+            await _jobService.PauseJobAsync(id);
+            _logger.LogInformation("Job {JobId} paused", id);
+            TempData["SuccessMessage"] = "Job paused successfully. No new items will be processed.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error pausing job {JobId}", id);
+            TempData["ErrorMessage"] = $"Failed to pause job: {ex.Message}";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    /// <summary>
+    /// Resume a paused job
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Resume(Guid id)
+    {
+        try
+        {
+            await _jobService.ResumeJobAsync(id);
+            _logger.LogInformation("Job {JobId} resumed", id);
+            TempData["SuccessMessage"] = "Job resumed successfully. Processing will continue.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resuming job {JobId}", id);
+            TempData["ErrorMessage"] = $"Failed to resume job: {ex.Message}";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    /// <summary>
+    /// Update job priority
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdatePriority(Guid id, string priority)
+    {
+        try
+        {
+            await _jobService.UpdateJobPriorityAsync(id, priority);
+            _logger.LogInformation("Job {JobId} priority updated to {Priority}", id, priority);
+            TempData["SuccessMessage"] = $"Job priority updated to {priority}.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating priority for job {JobId}", id);
+            TempData["ErrorMessage"] = $"Failed to update priority: {ex.Message}";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    /// <summary>
+    /// Update job item payload
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateItemPayload(Guid id, Guid messageId, string payload)
+    {
+        try
+        {
+            await _jobService.UpdateJobItemPayloadAsync(messageId, payload);
+            _logger.LogInformation("Job item {MessageId} payload updated", messageId);
+            TempData["SuccessMessage"] = "Item payload updated successfully.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating payload for item {MessageId}", messageId);
+            TempData["ErrorMessage"] = $"Failed to update payload: {ex.Message}";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
 }

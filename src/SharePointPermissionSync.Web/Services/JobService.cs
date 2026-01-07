@@ -167,4 +167,44 @@ public class JobService
             _ => "Unknown"
         };
     }
+
+    /// <summary>
+    /// Cancel a job and all its pending items
+    /// </summary>
+    public async Task CancelJobAsync(Guid jobId)
+    {
+        await _jobRepository.CancelJobAsync(jobId);
+    }
+
+    /// <summary>
+    /// Pause a job
+    /// </summary>
+    public async Task PauseJobAsync(Guid jobId)
+    {
+        await _jobRepository.PauseJobAsync(jobId);
+    }
+
+    /// <summary>
+    /// Resume a paused job
+    /// </summary>
+    public async Task ResumeJobAsync(Guid jobId)
+    {
+        await _jobRepository.ResumeJobAsync(jobId);
+    }
+
+    /// <summary>
+    /// Update job priority
+    /// </summary>
+    public async Task UpdateJobPriorityAsync(Guid jobId, string priority)
+    {
+        await _jobRepository.UpdateJobPriorityAsync(jobId, priority);
+    }
+
+    /// <summary>
+    /// Update job item payload
+    /// </summary>
+    public async Task UpdateJobItemPayloadAsync(Guid messageId, string payload)
+    {
+        await _jobRepository.UpdateJobItemPayloadAsync(messageId, payload);
+    }
 }
