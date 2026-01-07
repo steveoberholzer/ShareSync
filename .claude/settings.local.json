@@ -40,7 +40,9 @@
       "Bash(dotnet restore:*)",
       "Bash(msbuild:*)",
       "Bash(git reset:*)",
-      "Bash(dotnet tool list:*)"
+      "Bash(dotnet tool list:*)",
+      "Bash(dotnet nuget:*)",
+      "Bash(dotnet msbuild:*)"
     ]
   }
 }

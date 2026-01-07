@@ -106,16 +106,6 @@ public interface IJobRepository
     Task CancelJobAsync(Guid jobId);
 
     /// <summary>
-    /// Pause a job
-    /// </summary>
-    Task PauseJobAsync(Guid jobId);
-
-    /// <summary>
-    /// Resume a paused job
-    /// </summary>
-    Task ResumeJobAsync(Guid jobId);
-
-    /// <summary>
     /// Bulk update status for job items matching criteria
     /// </summary>
     Task BulkUpdateJobItemStatusAsync(Guid jobId, string fromStatus, string toStatus);

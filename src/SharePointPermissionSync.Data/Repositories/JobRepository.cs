@@ -260,34 +260,6 @@ public class JobRepository : IJobRepository
         }
     }
 
-    public async Task PauseJobAsync(Guid jobId)
-    {
-        var job = await _context.ProcessingJobs
-            .FirstOrDefaultAsync(j => j.JobId == jobId);
-
-        if (job != null)
-        {
-            job.Status = "Paused";
-            await _context.SaveChangesAsync();
-        }
-    }
-
-    public async Task ResumeJobAsync(Guid jobId)
-    {
-        var job = await _context.ProcessingJobs
-            .FirstOrDefaultAsync(j => j.JobId == jobId);
-
-        if (job != null)
-        {
-            // Determine new status based on progress
-            var hasProcessing = await _context.ProcessingJobItems
-                .AnyAsync(i => i.JobId == jobId && i.Status == "Processing");
-
-            job.Status = hasProcessing ? "Processing" : "Queued";
-            await _context.SaveChangesAsync();
-        }
-    }
-
     public async Task BulkUpdateJobItemStatusAsync(Guid jobId, string fromStatus, string toStatus)
     {
         var items = await _context.ProcessingJobItems

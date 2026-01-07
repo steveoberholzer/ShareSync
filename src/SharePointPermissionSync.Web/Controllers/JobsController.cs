@@ -98,50 +98,6 @@ public class JobsController : Controller
     }
 
     /// <summary>
-    /// Pause a job
-    /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Pause(Guid id)
-    {
-        try
-        {
-            await _jobService.PauseJobAsync(id);
-            _logger.LogInformation("Job {JobId} paused", id);
-            TempData["SuccessMessage"] = "Job paused successfully. No new items will be processed.";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error pausing job {JobId}", id);
-            TempData["ErrorMessage"] = $"Failed to pause job: {ex.Message}";
-        }
-
-        return RedirectToAction(nameof(Details), new { id });
-    }
-
-    /// <summary>
-    /// Resume a paused job
-    /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Resume(Guid id)
-    {
-        try
-        {
-            await _jobService.ResumeJobAsync(id);
-            _logger.LogInformation("Job {JobId} resumed", id);
-            TempData["SuccessMessage"] = "Job resumed successfully. Processing will continue.";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error resuming job {JobId}", id);
-            TempData["ErrorMessage"] = $"Failed to resume job: {ex.Message}";
-        }
-
-        return RedirectToAction(nameof(Details), new { id });
-    }
-
-    /// <summary>
     /// Update job priority
     /// </summary>
     [HttpPost]

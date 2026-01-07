@@ -50,7 +50,7 @@ public class MessageProcessor
                 message.OperationType,
                 message.JobId);
 
-            // Check if job is cancelled or paused (fetch fresh status from database)
+            // Check if job is cancelled (fetch fresh status from database)
             var jobStatus = await _jobRepository.GetJobStatusAsync(message.JobId);
 
             if (jobStatus == "Cancelled")
@@ -66,24 +66,6 @@ public class MessageProcessor
                     "Job was cancelled");
 
                 return; // Skip processing
-            }
-
-            if (jobStatus == "Paused")
-            {
-                _logger.LogInformation(
-                    "Job {JobId} is paused. Marking message {MessageId} as paused.",
-                    message.JobId,
-                    message.MessageId);
-
-                // Mark item as "Paused" in database
-                // When job is resumed, these items will be republished
-                await _jobRepository.UpdateJobItemStatusAsync(
-                    message.MessageId,
-                    "Paused",
-                    "Job was paused");
-
-                // Acknowledge the message (remove from queue) - it will be republished on resume
-                return;
             }
 
             // Update job item status to Processing
