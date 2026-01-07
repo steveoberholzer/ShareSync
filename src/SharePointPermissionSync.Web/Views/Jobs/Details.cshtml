@@ -201,10 +201,20 @@
 
                         @if (Model.Status == "Cancelled" || Model.Status == "Completed" || Model.Status == "Failed" || Model.Status == "Completed with Errors")
                         {
-                            <div class="alert alert-info mb-0">
+                            <hr class="my-2" />
+                            <div class="alert alert-info mb-2">
                                 <i class="bi bi-info-circle"></i>
-                                This job has finished and cannot be modified.
+                                This job has finished. You can restart it to create a new job with the same items.
                             </div>
+
+                            <!-- Restart Button -->
+                            <form asp-action="Restart" asp-route-id="@Model.JobId" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success w-100"
+                                        onclick="return confirm('This will create a new job with all items from this job. Continue?');">
+                                    <i class="bi bi-arrow-clockwise"></i> Restart Job
+                                </button>
+                            </form>
                         }
                     </div>
                 </div>

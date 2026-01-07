@@ -98,6 +98,30 @@ public class JobsController : Controller
     }
 
     /// <summary>
+    /// Restart a job by creating a new job with all items
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Restart(Guid id)
+    {
+        try
+        {
+            var newJobId = await _jobService.RestartJobAsync(id);
+            _logger.LogInformation("Job {OldJobId} restarted as new job {NewJobId}", id, newJobId);
+            TempData["SuccessMessage"] = $"Job restarted successfully as new job. Click here to view the new job.";
+
+            // Redirect to the new job
+            return RedirectToAction(nameof(Details), new { id = newJobId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error restarting job {JobId}", id);
+            TempData["ErrorMessage"] = $"Failed to restart job: {ex.Message}";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+    }
+
+    /// <summary>
     /// Update job priority
     /// </summary>
     [HttpPost]

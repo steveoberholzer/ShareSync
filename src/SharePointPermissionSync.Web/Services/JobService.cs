@@ -177,6 +177,141 @@ public class JobService
     }
 
     /// <summary>
+    /// Restart a job by creating a new job with all items from the original job
+    /// </summary>
+    /// <returns>The new job ID</returns>
+    public async Task<Guid> RestartJobAsync(Guid oldJobId)
+    {
+        // Get the old job
+        var oldJob = await _jobRepository.GetJobByIdAsync(oldJobId);
+        if (oldJob == null)
+            throw new InvalidOperationException($"Job {oldJobId} not found");
+
+        // Get all items from the old job
+        var oldItems = await _jobRepository.GetJobItemsAsync(oldJobId);
+        if (!oldItems.Any())
+        {
+            _logger.LogWarning("Job {JobId} has no items to restart", oldJobId);
+            throw new InvalidOperationException($"Job {oldJobId} has no items to restart");
+        }
+
+        _logger.LogInformation(
+            "Restarting job {OldJobId} with {Count} items",
+            oldJobId,
+            oldItems.Count);
+
+        // Create new job with same metadata
+        var newJob = new ProcessingJob
+        {
+            JobId = Guid.NewGuid(),
+            JobType = oldJob.JobType,
+            Status = "Queued",
+            Priority = oldJob.Priority,
+            TotalItems = oldJob.TotalItems,
+            ProcessedItems = 0,
+            FailedItems = 0,
+            FileName = oldJob.FileName,
+            UploadedBy = oldJob.UploadedBy,
+            Environment = oldJob.Environment,
+            SiteUrl = oldJob.SiteUrl,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _jobRepository.CreateJobAsync(newJob);
+
+        // Republish all items to the queue with new JobId
+        int successCount = 0;
+        foreach (var item in oldItems)
+        {
+            try
+            {
+                // Deserialize the payload back to the original message type
+                if (string.IsNullOrEmpty(item.Payload))
+                {
+                    _logger.LogWarning("Item {MessageId} has empty payload, skipping", item.MessageId);
+                    continue;
+                }
+
+                QueueMessageBase? message = item.ItemType switch
+                {
+                    "InteractionPermission" => System.Text.Json.JsonSerializer.Deserialize<InteractionPermissionMessage>(item.Payload),
+                    "InteractionCreation" => System.Text.Json.JsonSerializer.Deserialize<InteractionCreationMessage>(item.Payload),
+                    "RemoveUniquePermission" => System.Text.Json.JsonSerializer.Deserialize<RemoveUniquePermissionMessage>(item.Payload),
+                    _ => null
+                };
+
+                if (message == null)
+                {
+                    _logger.LogWarning("Failed to deserialize item {MessageId} of type {ItemType}", item.MessageId, item.ItemType);
+                    continue;
+                }
+
+                // Update message with new JobId and MessageId
+                var newMessageId = Guid.NewGuid();
+                message.JobId = newJob.JobId;
+                message.MessageId = newMessageId;
+
+                // Determine queue name based on message type
+                var queueName = message switch
+                {
+                    InteractionPermissionMessage => _configuration["RabbitMQ:Queues:InteractionPermissions"] ?? "sharepoint.interaction.permissions",
+                    InteractionCreationMessage => _configuration["RabbitMQ:Queues:InteractionCreation"] ?? "sharepoint.interaction.creation",
+                    RemoveUniquePermissionMessage => _configuration["RabbitMQ:Queues:RemovePermissions"] ?? "sharepoint.remove.permissions",
+                    _ => throw new InvalidOperationException($"Unknown message type: {message.GetType().Name}")
+                };
+
+                // Create new job item in database
+                var newItem = new ProcessingJobItem
+                {
+                    MessageId = newMessageId,
+                    JobId = newJob.JobId,
+                    ItemType = item.ItemType,
+                    Status = "Pending",
+                    Payload = System.Text.Json.JsonSerializer.Serialize(message),
+                    ItemIdentifier = item.ItemIdentifier,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _jobRepository.AddJobItemAsync(newItem);
+
+                // Republish to queue
+                await _queueService.PublishAsync(queueName, message, GetPriorityValue(newJob.Priority));
+
+                successCount++;
+                _logger.LogDebug("Republished item {OldMessageId} as {NewMessageId} to queue {QueueName}",
+                    item.MessageId, newMessageId, queueName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to restart item {MessageId}", item.MessageId);
+            }
+        }
+
+        _logger.LogInformation(
+            "Successfully restarted {SuccessCount}/{TotalCount} items from job {OldJobId} as new job {NewJobId}",
+            successCount,
+            oldItems.Count,
+            oldJobId,
+            newJob.JobId);
+
+        return newJob.JobId;
+    }
+
+    /// <summary>
+    /// Convert priority string to numeric value for RabbitMQ
+    /// </summary>
+    private int GetPriorityValue(string? priority)
+    {
+        return priority switch
+        {
+            "High" => 8,
+            "Medium" => 5,
+            "Low" => 2,
+            _ => 5
+        };
+    }
+
+    /// <summary>
     /// Update job priority
     /// </summary>
     public async Task UpdateJobPriorityAsync(Guid jobId, string priority)
