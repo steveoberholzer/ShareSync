@@ -18,6 +18,11 @@ public interface IJobRepository
     Task<ProcessingJob?> GetJobByIdAsync(Guid jobId);
 
     /// <summary>
+    /// Get job status (fresh from database, no caching)
+    /// </summary>
+    Task<string?> GetJobStatusAsync(Guid jobId);
+
+    /// <summary>
     /// Get all jobs with optional filtering
     /// </summary>
     Task<List<ProcessingJob>> GetJobsAsync(string? status = null, int skip = 0, int take = 50);

@@ -29,6 +29,16 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(j => j.JobId == jobId);
     }
 
+    public async Task<string?> GetJobStatusAsync(Guid jobId)
+    {
+        // Force fresh fetch from database, no tracking, only get status
+        return await _context.ProcessingJobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.Status)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<List<ProcessingJob>> GetJobsAsync(string? status = null, int skip = 0, int take = 50)
     {
         var query = _context.ProcessingJobs.AsQueryable();

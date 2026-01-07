@@ -50,38 +50,36 @@ public class MessageProcessor
                 message.OperationType,
                 message.JobId);
 
-            // Check if job is cancelled or paused
-            var job = await _jobRepository.GetJobByIdAsync(message.JobId);
-            if (job != null)
+            // Check if job is cancelled or paused (fetch fresh status from database)
+            var jobStatus = await _jobRepository.GetJobStatusAsync(message.JobId);
+
+            if (jobStatus == "Cancelled")
             {
-                if (job.Status == "Cancelled")
-                {
-                    _logger.LogWarning(
-                        "Skipping message {MessageId} - Job {JobId} is cancelled",
-                        message.MessageId,
-                        message.JobId);
+                _logger.LogWarning(
+                    "Skipping message {MessageId} - Job {JobId} is cancelled",
+                    message.MessageId,
+                    message.JobId);
 
-                    await _jobRepository.UpdateJobItemStatusAsync(
-                        message.MessageId,
-                        "Cancelled",
-                        "Job was cancelled");
+                await _jobRepository.UpdateJobItemStatusAsync(
+                    message.MessageId,
+                    "Cancelled",
+                    "Job was cancelled");
 
-                    return; // Skip processing
-                }
+                return; // Skip processing
+            }
 
-                if (job.Status == "Paused")
-                {
-                    _logger.LogInformation(
-                        "Skipping message {MessageId} - Job {JobId} is paused. Message will be requeued.",
-                        message.MessageId,
-                        message.JobId);
+            if (jobStatus == "Paused")
+            {
+                _logger.LogInformation(
+                    "Skipping message {MessageId} - Job {JobId} is paused. Message will be requeued.",
+                    message.MessageId,
+                    message.JobId);
 
-                    // Requeue the message for later processing
-                    var queueName = GetQueueNameForMessage(message);
-                    await _rabbitMqService.PublishAsync(queueName, message);
+                // Requeue the message for later processing
+                var queueName = GetQueueNameForMessage(message);
+                await _rabbitMqService.PublishAsync(queueName, message);
 
-                    return; // Skip processing
-                }
+                return; // Skip processing
             }
 
             // Update job item status to Processing
