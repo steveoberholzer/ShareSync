@@ -20,6 +20,12 @@ try
 
     var builder = Host.CreateApplicationBuilder(args);
 
+    // Configure Windows Service support
+    builder.Services.AddWindowsService(options =>
+    {
+        options.ServiceName = "SharePoint Permission Sync Worker";
+    });
+
     // Add Serilog
     builder.Services.AddSerilog();
 

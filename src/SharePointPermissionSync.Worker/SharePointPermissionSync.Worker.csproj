@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.79.2" />
     <PackageReference Include="Microsoft.SharePointOnline.CSOM" Version="16.1.26712.12000" />
     <PackageReference Include="PnP.Framework" Version="1.18.0" />
