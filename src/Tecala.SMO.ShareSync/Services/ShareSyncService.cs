@@ -5,7 +5,10 @@ using SourceCode.SmartObjects.Services.ServiceSDK.Objects;
 using SourceCode.SmartObjects.Services.ServiceSDK.Types;
 using System;
 using System.Collections.Generic;
-using Tecala.SMO.ShareSync.Services;
+using System.Linq;
+using System.Text;
+using System.Xml.Linq;
+using Tecala.SMO.ShareSync.Models;
 
 namespace Tecala.SMO.ShareSync.Services
 {
@@ -53,8 +56,8 @@ namespace Tecala.SMO.ShareSync.Services
             MethodType.Execute,
             "Sync Interaction Permissions",
             "Queue a permission sync operation for a SharePoint interaction folder.",
-            new[] { "InteractionId", "Environment" },
-            new[] { "InteractionId", "Environment", "InternalPermission", "InternalUserEmails", "ExternalPermission", "ExternalUserEmails", "Priority" },
+            new[] { "InteractionId", "Environment", "UploadedBy" },
+            new[] { "InteractionId", "Environment", "UploadedBy", "InternalPermission", "InternalUserEmails", "ExternalPermission", "ExternalUserEmails", "Priority" },
             new[] { "ErrorNumber", "ErrorMessage", "JobId", "MessageId" })]
         public ShareSyncService SyncInteractionPermissions()
         {
@@ -100,7 +103,7 @@ namespace Tecala.SMO.ShareSync.Services
                         // Create job
                         Guid jobId = dbService.CreateJob(
                             "InteractionPermissionSync",
-                            "K2 Broker",
+                            UploadedBy,
                             Environment,
                             siteUrl ?? string.Empty,
                             Priority ?? "Medium");
@@ -131,6 +134,9 @@ namespace Tecala.SMO.ShareSync.Services
                             // SharePoint configuration
                             SiteUrl = siteUrl ?? string.Empty,
                             DocumentLibrary = "Documents",
+
+                            // We need the person who created the message
+                            CreatedBy = UploadedBy,
 
                             // Permissions
                             InternalPermission = InternalPermission ?? "Read",
@@ -184,8 +190,8 @@ namespace Tecala.SMO.ShareSync.Services
             MethodType.Create,
             "Create Interaction",
             "Create a new interaction folder in SharePoint with permissions.",
-            new[] { "InteractionId", "Environment" },
-            new[] { "InteractionId", "Environment", "ProjectSubfolder", "InternalPermission", "InternalUserEmails", "ExternalPermission", "ExternalUserEmails", "Priority" },
+            new[] { "InteractionId", "Environment", "UploadedBy" },
+            new[] { "InteractionId", "Environment", "UploadedBy", "ProjectSubfolder", "InternalPermission", "InternalUserEmails", "ExternalPermission", "ExternalUserEmails", "Priority" },
             new[] { "ErrorNumber", "ErrorMessage", "JobId", "MessageId" })]
         public ShareSyncService CreateInteraction()
         {
@@ -221,7 +227,7 @@ namespace Tecala.SMO.ShareSync.Services
                         // Create job
                         Guid jobId = dbService.CreateJob(
                             "InteractionCreation",
-                            "K2 Broker",
+                            UploadedBy,
                             Environment,
                             siteUrl ?? string.Empty,
                             Priority ?? "Medium");
@@ -253,7 +259,7 @@ namespace Tecala.SMO.ShareSync.Services
                             SiteUrl = siteUrl ?? string.Empty,
                             DocumentLibrary = "Documents",
                             ProjectSubfolder = ProjectSubfolder ?? string.Empty,
-                            CreatedBy = "K2 Broker",
+                            CreatedBy = UploadedBy,
 
                             // Permissions
                             InternalPermission = InternalPermission ?? "Read",
@@ -295,6 +301,161 @@ namespace Tecala.SMO.ShareSync.Services
                     ErrorMessage = message,
                     JobId = string.Empty,
                     MessageId = string.Empty
+                };
+            }
+        }
+
+        /// <summary>
+        /// Create multiple interactions from a CSV file
+        /// </summary>
+        [Method(
+            "CreateInteractionBulk",
+            MethodType.Create,
+            "Create Interactions Bulk",
+            "Create multiple interaction folders in SharePoint from a CSV file.",
+            new[] { "CsvFile", "Environment", "UploadedBy" },
+            new[] { "CsvFile", "Environment", "UploadedBy", "Priority" },
+            new[] { "ErrorNumber", "ErrorMessage", "JobId", "ItemCount" })]
+        public ShareSyncService CreateInteractionBulk()
+        {
+            try
+            {
+                _logger.LogInformation("Starting CreateInteractionBulk");
+
+                // Validate required parameters
+                if (string.IsNullOrWhiteSpace(CsvFile))
+                    throw new ArgumentException("CsvFile is required");
+
+                if (string.IsNullOrWhiteSpace(Environment))
+                    throw new ArgumentException("Environment is required (DEV, UAT, or PROD)");
+
+                // Parse K2 file XML
+                var (fileName, fileContent) = ParseK2File(CsvFile);
+                _logger.LogInformation($"Processing file: {fileName}");
+
+                // Parse CSV content
+                var interactions = ParseCsvInteractions(fileContent);
+                if (interactions.Count == 0)
+                    throw new ArgumentException("CSV file contains no valid interaction records");
+
+                _logger.LogInformation($"Found {interactions.Count} interactions in CSV");
+
+                // Create services
+                var connectionString = _serviceConfig["SQL Connection String"].ToString();
+                using (var dbService = new DatabaseService(connectionString, _logger))
+                {
+                    var rabbitHost = _serviceConfig["RabbitMQ Host"].ToString();
+                    var rabbitPort = int.Parse(_serviceConfig["RabbitMQ Port"].ToString());
+                    var rabbitUser = _serviceConfig["RabbitMQ Username"].ToString();
+                    var rabbitPass = _serviceConfig["RabbitMQ Password"].ToString();
+                    var rabbitVHost = _serviceConfig["RabbitMQ VirtualHost"].ToString();
+
+                    using (var queueService = new QueueService(rabbitHost, rabbitPort, rabbitUser, rabbitPass, rabbitVHost, _logger))
+                    {
+                        // Create single job for bulk operation
+                        Guid jobId = dbService.CreateJob(
+                            "InteractionCreation",
+                            UploadedBy,
+                            Environment,
+                            string.Empty, // No single site URL for bulk
+                            Priority ?? "Medium");
+
+                        string queueName = _serviceConfig["Queue InteractionCreation"].ToString();
+                        int priorityValue = ConvertPriority(Priority ?? "Medium");
+                        int itemCount = 0;
+
+                        // Process each interaction
+                        foreach (var interaction in interactions)
+                        {
+                            try
+                            {
+                                // Validate and parse InteractionId
+                                if (!Guid.TryParse(interaction.InteractionId, out Guid interactionGuid))
+                                    throw new ArgumentException($"Invalid InteractionId GUID: {interaction.InteractionId}");
+
+                                // Query database for full hierarchy
+                                var (interactionId, interactionName, interactionNumber, interactionSharePointFolderId,
+                                     projectId, projectName, projectSharePointFolderId,
+                                     engagementId, engagementName, engagementSharePointFolderId, siteUrl) =
+                                    dbService.GetInteractionHierarchy(interactionGuid);
+
+                                // Create message
+                                Guid messageId = Guid.NewGuid();
+                                var message = new
+                                {
+                                    MessageId = messageId,
+                                    JobId = jobId,
+                                    OperationType = "InteractionCreation",
+
+                                    // GUID identifiers
+                                    InteractionId = interactionId,
+                                    ProjectId = projectId,
+                                    EngagementId = engagementId,
+
+                                    // SharePoint folder IDs
+                                    EngagementSharePointFolderId = engagementSharePointFolderId,
+                                    ProjectSharePointFolderId = projectSharePointFolderId,
+                                    InteractionSharePointFolderId = interactionSharePointFolderId,
+
+                                    // Business identifiers
+                                    InteractionName = FormatInteractionName(interactionNumber, interactionName),
+                                    ProjectName = CleanFolderName(projectName),
+                                    EngagementName = CleanFolderName(engagementName),
+
+                                    // SharePoint configuration
+                                    SiteUrl = siteUrl ?? string.Empty,
+                                    DocumentLibrary = "Documents",
+                                    ProjectSubfolder = interaction.ProjectSubfolder ?? string.Empty,
+                                    CreatedBy = UploadedBy,
+
+                                    // Permissions
+                                    InternalPermission = interaction.InternalPermission ?? "Read",
+                                    InternalUserEmails = ParseEmailList(interaction.InternalUserEmails),
+                                    ExternalPermission = interaction.ExternalPermission ?? string.Empty,
+                                    ExternalUserEmails = ParseEmailList(interaction.ExternalUserEmails),
+
+                                    QueuedAt = DateTime.UtcNow
+                                };
+
+                                // Create job item
+                                string itemIdentifier = $"{CleanFolderName(engagementName)} | {CleanFolderName(projectName)} | {FormatInteractionName(interactionNumber, interactionName)}";
+                                dbService.CreateJobItem(jobId, messageId, "InteractionCreation", itemIdentifier, message);
+
+                                // Publish to queue
+                                queueService.PublishMessage(queueName, message, priorityValue);
+
+                                itemCount++;
+                                _logger.LogInformation($"Queued interaction {itemCount}/{interactions.Count}: {itemIdentifier}");
+                            }
+                            catch (Exception ex)
+                            {
+                                // If ANY interaction fails, rollback and fail the whole job
+                                throw new Exception($"Failed processing interaction '{interaction.InteractionId}': {ex.Message}", ex);
+                            }
+                        }
+
+                        _logger.LogInformation($"Successfully queued {itemCount} interactions for Job {jobId}");
+
+                        return new ShareSyncService
+                        {
+                            ErrorNumber = 0,
+                            ErrorMessage = string.Empty,
+                            JobId = jobId.ToString(),
+                            ItemCount = itemCount.ToString()
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                string message = $"CreateInteractionBulk failed. Error: {ex.Message}";
+                _logger.LogError(ex, message);
+                return new ShareSyncService
+                {
+                    ErrorNumber = _errorNumberService.GetErrorNumber(),
+                    ErrorMessage = message,
+                    JobId = string.Empty,
+                    ItemCount = "0"
                 };
             }
         }
@@ -414,6 +575,15 @@ namespace Tecala.SMO.ShareSync.Services
         [Property("Priority", SoType.Text, "Priority", "Job priority (Low, Medium, High, Critical).")]
         public string Priority { get; set; }
 
+        [Property("CsvFile", SoType.File, "CSV File", "CSV file containing interaction details to create.")]
+        public string CsvFile { get; set; }
+
+        [Property("UploadedBy", SoType.File, "Uploaded By", "The username that uploaded the document.")]
+        public string UploadedBy { get; set; }
+
+        [Property("ItemCount", SoType.Text, "Item Count", "Number of interactions successfully queued.")]
+        public string ItemCount { get; set; }
+
         #endregion
 
         #region Helper Methods
@@ -485,6 +655,92 @@ namespace Tecala.SMO.ShareSync.Services
                 return CleanFolderName(name);
 
             return $"Interaction{interactionNumber.Value}-R";
+        }
+
+        // Helper method to parse K2 file XML
+        private (string fileName, string fileContent) ParseK2File(string fileXml)
+        {
+            try
+            {
+                var doc = XDocument.Parse(fileXml);
+                var fileName = doc.Root?.Element("name")?.Value;
+                var contentBase64 = doc.Root?.Element("content")?.Value;
+
+                if (string.IsNullOrWhiteSpace(fileName) || string.IsNullOrWhiteSpace(contentBase64))
+                    throw new ArgumentException("Invalid K2 file format");
+
+                byte[] contentBytes = Convert.FromBase64String(contentBase64);
+                string fileContent = Encoding.UTF8.GetString(contentBytes);
+
+                return (fileName, fileContent);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Failed to parse K2 file XML: {ex.Message}", ex);
+            }
+        }
+
+        // Helper method to parse CSV content
+        private List<CsvInteractionRow> ParseCsvInteractions(string csvContent)
+        {
+            var interactions = new List<CsvInteractionRow>();
+
+            try
+            {
+                var lines = csvContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+                if (lines.Length < 2)
+                    throw new ArgumentException("CSV file must contain at least a header row and one data row");
+
+                // Parse header to find column indices
+                var headers = lines[0].Split(',').Select(h => h.Trim()).ToArray();
+                var columnMap = new Dictionary<string, int>();
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    columnMap[headers[i]] = i;
+                }
+
+                // Validate required columns
+                if (!columnMap.ContainsKey("InteractionId"))
+                    throw new ArgumentException("CSV must contain 'InteractionId' column");
+
+                // Parse data rows
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    var values = lines[i].Split(',').Select(v => v.Trim()).ToArray();
+
+                    var row = new CsvInteractionRow
+                    {
+                        InteractionId = GetColumnValue(values, columnMap, "InteractionId"),
+                        ProjectSubfolder = GetColumnValue(values, columnMap, "ProjectSubfolder"),
+                        InternalPermission = GetColumnValue(values, columnMap, "InternalPermission"),
+                        InternalUserEmails = GetColumnValue(values, columnMap, "InternalUserEmails"),
+                        ExternalPermission = GetColumnValue(values, columnMap, "ExternalPermission"),
+                        ExternalUserEmails = GetColumnValue(values, columnMap, "ExternalUserEmails")
+                    };
+
+                    // Validate required field
+                    if (string.IsNullOrWhiteSpace(row.InteractionId))
+                        throw new ArgumentException($"Row {i + 1}: InteractionId is required");
+
+                    interactions.Add(row);
+                }
+
+                return interactions;
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Failed to parse CSV content: {ex.Message}", ex);
+            }
+        }
+
+        // Helper to safely get column value
+        private string GetColumnValue(string[] values, Dictionary<string, int> columnMap, string columnName)
+        {
+            if (columnMap.TryGetValue(columnName, out int index) && index < values.Length)
+                return values[index];
+            return string.Empty;
         }
 
         #endregion

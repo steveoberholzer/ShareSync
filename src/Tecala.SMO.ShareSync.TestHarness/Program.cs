@@ -1,7 +1,8 @@
-using System;
-using System.Configuration;
 using SourceCode.SmartObjects.Services.ServiceSDK;
 using SourceCode.SmartObjects.Services.ServiceSDK.Objects;
+using System;
+using System.Configuration;
+using System.IO;
 using Tecala.SMO.ShareSync.Services;
 
 namespace Tecala.SMO.ShareSync.TestHarness
@@ -30,8 +31,9 @@ namespace Tecala.SMO.ShareSync.TestHarness
                     Console.WriteLine("\nSelect an operation:");
                     Console.WriteLine("1. Sync Interaction Permissions");
                     Console.WriteLine("2. Create Interaction");
-                    Console.WriteLine("3. Get Job Status");
-                    Console.WriteLine("4. Exit");
+                    Console.WriteLine("3. Create Interactions from CSV");
+                    Console.WriteLine("4. Get Job Status");
+                    Console.WriteLine("5. Exit");
                     Console.Write("\nChoice: ");
 
                     string choice = Console.ReadLine();
@@ -45,9 +47,12 @@ namespace Tecala.SMO.ShareSync.TestHarness
                             TestCreateInteraction(config);
                             break;
                         case "3":
-                            TestGetJobStatus(config);
+                            TestCreateInteractions(config);
                             break;
                         case "4":
+                            TestGetJobStatus(config);
+                            break;
+                        case "5":
                             running = false;
                             break;
                         default:
@@ -128,7 +133,6 @@ namespace Tecala.SMO.ShareSync.TestHarness
         static void TestCreateInteraction(ServiceConfiguration config)
         {
             Console.WriteLine("\n--- Create Interaction ---");
-            Console.WriteLine("NOTE: ProjectId, EngagementId, and SiteUrl are now queried from database using InteractionId");
             Console.WriteLine();
 
             try
@@ -139,6 +143,7 @@ namespace Tecala.SMO.ShareSync.TestHarness
 
                 Console.Write("Environment (DEV/UAT/PROD): ");
                 string environment = Console.ReadLine();
+                if (string.IsNullOrEmpty(environment)) { environment = "UAT"; }
 
                 Console.Write("Project Subfolder (optional): ");
                 string subfolder = Console.ReadLine();
@@ -168,6 +173,7 @@ namespace Tecala.SMO.ShareSync.TestHarness
                     InternalUserEmails = internalEmails,
                     ExternalPermission = externalPerm,
                     ExternalUserEmails = externalEmails,
+                    UploadedBy = $"{Environment.UserDomainName}\\{Environment.UserName}",
                     Priority = string.IsNullOrWhiteSpace(priority) ? "Medium" : priority
                 };
 
@@ -182,6 +188,57 @@ namespace Tecala.SMO.ShareSync.TestHarness
                 Console.WriteLine($"Error: {ex.Message}");
                 Console.ResetColor();
             }
+        }
+
+        static void TestCreateInteractions(ServiceConfiguration config)
+        {
+            Console.WriteLine("\n--- Create Interactions from CSV File ---");
+            Console.WriteLine();
+
+            try
+            {
+                // Get input from user
+                Console.Write("Environment (DEV/UAT/PROD): ");
+                string environment = Console.ReadLine();
+                if (string.IsNullOrEmpty(environment)) { environment = "UAT"; }
+
+                Console.Write("CSV File Path: ");
+                string csvFilePath = Console.ReadLine();
+                if (string.IsNullOrEmpty(csvFilePath)) csvFilePath = @"C:\Temp\Test.csv";
+                string fileText = ConvertFileToK2Format(csvFilePath);
+
+                Console.Write("Priority (Low/Medium/High/Critical): ");
+                string priority = Console.ReadLine();
+
+                // Create service and execute
+                var service = new ShareSyncService(config)
+                {
+                    Environment = environment,
+                    CsvFile = fileText,
+                    UploadedBy = $"{Environment.UserDomainName}\\{Environment.UserName}",
+                    Priority = string.IsNullOrWhiteSpace(priority) ? "Medium" : priority
+                };
+
+                Console.WriteLine("\nExecuting CreateInteraction...");
+                var result = service.CreateInteractionBulk();
+
+                DisplayResult(result);
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+
+        private static string ConvertFileToK2Format(string csvFilePath)
+        {
+            var fileName = Path.GetFileName(csvFilePath);
+            var content = System.IO.File.ReadAllBytes(csvFilePath);
+            var base64Content = Convert.ToBase64String(content);
+
+            return $"<file><name>{fileName}</name><content>{base64Content}</content></file>";
         }
 
         static void TestGetJobStatus(ServiceConfiguration config)
