@@ -129,6 +129,61 @@ namespace Tecala.SMO.ShareSync.Services
         }
 
         /// <summary>
+        /// Stop a running job by updating its status to Cancelled
+        /// Cancels all pending job items (items already processing will complete normally)
+        /// </summary>
+        public void StopJob(Guid jobId)
+        {
+            try
+            {
+                EnsureConnection();
+
+                // First, update all pending job items to Cancelled (let processing items complete)
+                string updateItemsSql = @"
+                    UPDATE ScyneShare.ProcessingJobItems
+                    SET Status = @Status
+                    WHERE JobId = @JobId
+                    AND Status = 'Pending'";
+
+                using (var cmd = new SqlCommand(updateItemsSql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@JobId", jobId);
+                    cmd.Parameters.AddWithValue("@Status", "Cancelled");
+
+                    int itemsAffected = cmd.ExecuteNonQuery();
+                    _logger.LogInformation($"Cancelled {itemsAffected} pending job items for job {jobId}");
+                }
+
+                // Then, update the job itself to Cancelled
+                string updateJobSql = @"
+                    UPDATE ScyneShare.ProcessingJobs
+                    SET Status = @Status, CompletedAt = @CompletedAt
+                    WHERE JobId = @JobId";
+
+                using (var cmd = new SqlCommand(updateJobSql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@JobId", jobId);
+                    cmd.Parameters.AddWithValue("@Status", "Cancelled");
+                    cmd.Parameters.AddWithValue("@CompletedAt", DateTime.UtcNow);
+
+                    int rowsAffected = cmd.ExecuteNonQuery();
+
+                    if (rowsAffected == 0)
+                    {
+                        throw new Exception($"Job {jobId} not found");
+                    }
+                }
+
+                _logger.LogInformation($"Cancelled job {jobId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to cancel job {jobId}");
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Get interaction details by ID
         /// </summary>
         public (string Name, int? InteractionNumber, int? SharePointFolderID) GetInteractionDetails(Guid interactionId)

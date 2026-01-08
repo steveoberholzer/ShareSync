@@ -33,7 +33,8 @@ namespace Tecala.SMO.ShareSync.TestHarness
                     Console.WriteLine("2. Create Interaction");
                     Console.WriteLine("3. Create Interactions from CSV");
                     Console.WriteLine("4. Get Job Status");
-                    Console.WriteLine("5. Exit");
+                    Console.WriteLine("5. Stop Job");
+                    Console.WriteLine("6. Exit");
                     Console.Write("\nChoice: ");
 
                     string choice = Console.ReadLine();
@@ -53,6 +54,9 @@ namespace Tecala.SMO.ShareSync.TestHarness
                             TestGetJobStatus(config);
                             break;
                         case "5":
+                            TestStopJob(config);
+                            break;
+                        case "6":
                             running = false;
                             break;
                         default:
@@ -257,6 +261,33 @@ namespace Tecala.SMO.ShareSync.TestHarness
 
                 Console.WriteLine("\nExecuting GetJobStatus...");
                 var result = service.GetJobStatus();
+
+                DisplayResult(result);
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+
+        static void TestStopJob(ServiceConfiguration config)
+        {
+            Console.WriteLine("\n--- Stop Job ---");
+
+            try
+            {
+                Console.Write("Job ID (GUID): ");
+                string jobId = Console.ReadLine();
+
+                var service = new ShareSyncService(config)
+                {
+                    JobId = jobId
+                };
+
+                Console.WriteLine("\nExecuting StopJob...");
+                var result = service.StopJob();
 
                 DisplayResult(result);
             }

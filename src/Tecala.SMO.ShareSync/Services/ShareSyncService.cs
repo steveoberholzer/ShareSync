@@ -513,6 +513,59 @@ namespace Tecala.SMO.ShareSync.Services
             }
         }
 
+        /// <summary>
+        /// Stop a running job
+        /// </summary>
+        [Method(
+            "StopJob",
+            MethodType.Execute,
+            "Stop Job",
+            "Cancel a running job and all its pending items.",
+            new[] { "JobId" },
+            new[] { "JobId" },
+            new[] { "ErrorNumber", "ErrorMessage", "JobId", "Status" })]
+        public ShareSyncService StopJob()
+        {
+            try
+            {
+                _logger.LogInformation($"Cancelling Job {JobId}");
+
+                if (string.IsNullOrWhiteSpace(JobId))
+                    throw new ArgumentException("JobId is required");
+
+                if (!Guid.TryParse(JobId, out Guid jobGuid))
+                    throw new ArgumentException("JobId must be a valid GUID");
+
+                var connectionString = _serviceConfig["SQL Connection String"].ToString();
+                using (var dbService = new DatabaseService(connectionString, _logger))
+                {
+                    dbService.StopJob(jobGuid);
+
+                    _logger.LogInformation($"Successfully cancelled Job {JobId}");
+
+                    return new ShareSyncService
+                    {
+                        ErrorNumber = 0,
+                        ErrorMessage = string.Empty,
+                        JobId = JobId,
+                        Status = "Cancelled"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                string message = $"StopJob failed for Job {JobId}. Error: {ex.Message}";
+                _logger.LogError(ex, message);
+                return new ShareSyncService
+                {
+                    ErrorNumber = _errorNumberService.GetErrorNumber(),
+                    ErrorMessage = message,
+                    JobId = JobId,
+                    Status = "Error"
+                };
+            }
+        }
+
         #endregion
 
         #region Properties
