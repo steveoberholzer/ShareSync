@@ -631,7 +631,7 @@ namespace Tecala.SMO.ShareSync.Services
         [Property("CsvFile", SoType.File, "CSV File", "CSV file containing interaction details to create.")]
         public string CsvFile { get; set; }
 
-        [Property("UploadedBy", SoType.File, "Uploaded By", "The username that uploaded the document.")]
+        [Property("UploadedBy", SoType.Text, "Uploaded By", "The username that uploaded the document.")]
         public string UploadedBy { get; set; }
 
         [Property("ItemCount", SoType.Text, "Item Count", "Number of interactions successfully queued.")]
