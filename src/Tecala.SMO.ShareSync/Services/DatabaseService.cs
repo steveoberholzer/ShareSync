@@ -23,7 +23,7 @@ namespace Tecala.SMO.ShareSync.Services
         /// <summary>
         /// Create a new processing job in the database
         /// </summary>
-        public Guid CreateJob(string jobType, string uploadedBy, string environment, string siteUrl, string priority)
+        public Guid CreateJob(string jobType, string uploadedBy, string environment, string siteUrl, string priority, int totalItems = 0)
         {
             Guid jobId = Guid.NewGuid();
 
@@ -33,9 +33,9 @@ namespace Tecala.SMO.ShareSync.Services
 
                 string sql = @"
                     INSERT INTO ScyneShare.ProcessingJobs
-                        (JobId, JobType, UploadedBy, Environment, SiteUrl, Priority, Status, CreatedAt)
+                        (JobId, JobType, UploadedBy, Environment, SiteUrl, Priority, Status, TotalItems, ProcessedItems, FailedItems, CreatedAt)
                     VALUES
-                        (@JobId, @JobType, @UploadedBy, @Environment, @SiteUrl, @Priority, @Status, @CreatedAt)";
+                        (@JobId, @JobType, @UploadedBy, @Environment, @SiteUrl, @Priority, @Status, @TotalItems, @ProcessedItems, @FailedItems, @CreatedAt)";
 
                 using (var cmd = new SqlCommand(sql, _connection))
                 {
@@ -46,6 +46,9 @@ namespace Tecala.SMO.ShareSync.Services
                     cmd.Parameters.AddWithValue("@SiteUrl", siteUrl ?? string.Empty);
                     cmd.Parameters.AddWithValue("@Priority", priority ?? "Medium");
                     cmd.Parameters.AddWithValue("@Status", "Queued");
+                    cmd.Parameters.AddWithValue("@TotalItems", totalItems);
+                    cmd.Parameters.AddWithValue("@ProcessedItems", 0);
+                    cmd.Parameters.AddWithValue("@FailedItems", 0);
                     cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
 
                     cmd.ExecuteNonQuery();
@@ -179,6 +182,42 @@ namespace Tecala.SMO.ShareSync.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Failed to cancel job {jobId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Update the total items count for a job
+        /// </summary>
+        public void UpdateJobTotalItems(Guid jobId, int totalItems)
+        {
+            try
+            {
+                EnsureConnection();
+
+                string sql = @"
+                    UPDATE ScyneShare.ProcessingJobs
+                    SET TotalItems = @TotalItems
+                    WHERE JobId = @JobId";
+
+                using (var cmd = new SqlCommand(sql, _connection))
+                {
+                    cmd.Parameters.AddWithValue("@JobId", jobId);
+                    cmd.Parameters.AddWithValue("@TotalItems", totalItems);
+
+                    int rowsAffected = cmd.ExecuteNonQuery();
+
+                    if (rowsAffected == 0)
+                    {
+                        throw new Exception($"Job {jobId} not found");
+                    }
+                }
+
+                _logger.LogInformation($"Updated total items for job {jobId} to {totalItems}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to update total items for job {jobId}");
                 throw;
             }
         }

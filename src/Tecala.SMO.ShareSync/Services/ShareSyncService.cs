@@ -100,13 +100,14 @@ namespace Tecala.SMO.ShareSync.Services
 
                     using (var queueService = new QueueService(rabbitHost, rabbitPort, rabbitUser, rabbitPass, rabbitVHost, _logger))
                     {
-                        // Create job
+                        // Create job with 1 item
                         Guid jobId = dbService.CreateJob(
                             "InteractionPermissionSync",
                             UploadedBy,
                             Environment,
                             siteUrl ?? string.Empty,
-                            Priority ?? "Medium");
+                            Priority ?? "Medium",
+                            totalItems: 1);
 
                         // Create message with full hierarchy
                         Guid messageId = Guid.NewGuid();
@@ -224,13 +225,14 @@ namespace Tecala.SMO.ShareSync.Services
 
                     using (var queueService = new QueueService(rabbitHost, rabbitPort, rabbitUser, rabbitPass, rabbitVHost, _logger))
                     {
-                        // Create job
+                        // Create job with 1 item
                         Guid jobId = dbService.CreateJob(
                             "InteractionCreation",
                             UploadedBy,
                             Environment,
                             siteUrl ?? string.Empty,
-                            Priority ?? "Medium");
+                            Priority ?? "Medium",
+                            totalItems: 1);
 
                         // Create message with full hierarchy
                         Guid messageId = Guid.NewGuid();
@@ -433,6 +435,9 @@ namespace Tecala.SMO.ShareSync.Services
                                 throw new Exception($"Failed processing interaction '{interaction.InteractionId}': {ex.Message}", ex);
                             }
                         }
+
+                        // Update the job with the total item count
+                        dbService.UpdateJobTotalItems(jobId, itemCount);
 
                         _logger.LogInformation($"Successfully queued {itemCount} interactions for Job {jobId}");
 
